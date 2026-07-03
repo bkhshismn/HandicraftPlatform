@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="Handicraft.Api/Handicraft.Api.csproj" />
+  <Project Path="Handicraft.Application/Handicraft.Application.csproj" />
+  <Project Path="Handicraft.Domain/Handicraft.Domain.csproj" />
+  <Project Path="Handicraft.Infrastructure/Handicraft.Infrastructure.csproj" />
+</Solution>
