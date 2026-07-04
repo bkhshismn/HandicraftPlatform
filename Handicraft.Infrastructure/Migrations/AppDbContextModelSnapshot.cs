@@ -232,6 +232,45 @@ namespace Handicraft.Infrastructure.Migrations
                     b.ToTable("PortfolioItems", (string)null);
                 });
 
+            modelBuilder.Entity("Handicraft.Domain.Entities.RefreshToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsRevoked")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ReplacedByToken")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Token")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("RefreshTokens", (string)null);
+                });
+
             modelBuilder.Entity("Handicraft.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -359,6 +398,17 @@ namespace Handicraft.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Handicraft.Domain.Entities.RefreshToken", b =>
+                {
+                    b.HasOne("Handicraft.Domain.Entities.User", "User")
+                        .WithMany("RefreshTokens")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Handicraft.Domain.Entities.UserDevice", b =>
                 {
                     b.HasOne("Handicraft.Domain.Entities.User", "User")
@@ -384,6 +434,8 @@ namespace Handicraft.Infrastructure.Migrations
                     b.Navigation("Enrollments");
 
                     b.Navigation("Orders");
+
+                    b.Navigation("RefreshTokens");
                 });
 #pragma warning restore 612, 618
         }

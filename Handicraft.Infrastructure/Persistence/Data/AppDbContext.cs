@@ -14,6 +14,7 @@ public class AppDbContext : DbContext
     public DbSet<PortfolioItem> PortfolioItems => Set<PortfolioItem>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<UserDevice> UserDevices => Set<UserDevice>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -138,6 +139,24 @@ public class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasIndex(e => new { e.UserId, e.DeviceId });
+        });
+
+        // RefreshToken
+        modelBuilder.Entity<RefreshToken>(entity =>
+        {
+            entity.ToTable("RefreshTokens");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Token).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.ExpiresAt).IsRequired();
+            entity.Property(e => e.IsRevoked).IsRequired();
+            entity.Property(e => e.CreatedAt).IsRequired();
+
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.RefreshTokens)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.Token).IsUnique();
         });
     }
 }

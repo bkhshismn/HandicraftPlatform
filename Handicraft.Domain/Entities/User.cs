@@ -12,4 +12,5 @@ public class User : BaseEntity
     public ICollection<CourseEnrollment> Enrollments { get; set; } = new List<CourseEnrollment>();
     public ICollection<UserDevice> Devices { get; set; } = new List<UserDevice>();
     public ICollection<Order> Orders { get; set; } = new List<Order>();
+    public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
 }
