@@ -1,13 +1,44 @@
-﻿using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Handicraft.Infrastructure.Persistence.Data;
+using Handicraft.Application.Contracts.Persistence;
+using Handicraft.Infrastructure.Repositories;
+using Handicraft.Application.Services;
+using Handicraft.Application.Services;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Swagger (نسخه ساده و سازگار)
+// Add DbContext with PostgreSQL
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Repository registrations
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<ICourseRepository, CourseRepository>();
+builder.Services.AddScoped<ICourseEpisodeRepository, CourseEpisodeRepository>();
+builder.Services.AddScoped<ICourseEnrollmentRepository, CourseEnrollmentRepository>();
+builder.Services.AddScoped<IUserDeviceRepository, UserDeviceRepository>();
+builder.Services.AddScoped<IPortfolioItemRepository, PortfolioItemRepository>();
+builder.Services.AddScoped<IOrderRepository, OrderRepository>();
+
+// AutoMapper
+builder.Services.AddAutoMapper(typeof(Handicraft.Application.Services.MappingProfile).Assembly);
+
+// Application services
+builder.Services.AddScoped<ICourseService, CourseService>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.AddScoped<IPortfolioService, PortfolioService>();
+builder.Services.AddScoped<IUserDeviceService, UserDeviceService>();
+builder.Services.AddScoped<ICourseEnrollmentService, CourseEnrollmentService>();
+
+// Add Controllers
+builder.Services.AddControllers();
+
+// Swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    // هیچ تنظیم خاصی نده فعلاً
+    c.SwaggerDoc("v1", new() { Title = "Handicraft API", Version = "v1" });
 });
 
 var app = builder.Build();
@@ -17,34 +48,12 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI(c =>
     {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "API V1");
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Handicraft API V1");
     });
 }
 
 app.UseHttpsRedirection();
 
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm",
-    "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast = Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast(
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-
-    return forecast;
-});
+app.MapControllers();
 
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
