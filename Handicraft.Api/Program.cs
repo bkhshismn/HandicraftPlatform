@@ -2,7 +2,7 @@
 using Handicraft.Application.Contracts.Persistence;
 using Handicraft.Infrastructure.Repositories;
 using Handicraft.Application.Services;
-using Handicraft.Application.Services;
+using Handicraft.Application.Contracts.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);

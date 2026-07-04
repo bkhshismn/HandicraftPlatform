@@ -1,7 +1,6 @@
 using Handicraft.Application.Services.Dtos;
-using Handicraft.Domain.Entities;
 
-namespace Handicraft.Application.Services;
+namespace Handicraft.Application.Contracts.Services;
 
 public interface ICourseService
 {

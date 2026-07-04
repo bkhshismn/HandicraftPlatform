@@ -1,6 +1,7 @@
 using Handicraft.Application.Contracts.Persistence;
 using Handicraft.Application.Services.Dtos;
 using Handicraft.Domain.Entities;
+using Handicraft.Application.Contracts.Services;
 
 namespace Handicraft.Application.Services;
 

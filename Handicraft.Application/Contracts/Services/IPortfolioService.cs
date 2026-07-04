@@ -1,6 +1,6 @@
 using Handicraft.Application.Services.Dtos;
 
-namespace Handicraft.Application.Services;
+namespace Handicraft.Application.Contracts.Services;
 
 public interface IPortfolioService
 {

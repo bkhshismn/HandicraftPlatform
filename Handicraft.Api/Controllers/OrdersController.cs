@@ -1,5 +1,5 @@
 using Handicraft.Application.Contracts.Persistence;
-using Handicraft.Application.Services;
+using Handicraft.Application.Contracts.Services;
 using Handicraft.Application.Services.Dtos;
 using Microsoft.AspNetCore.Mvc;
 
