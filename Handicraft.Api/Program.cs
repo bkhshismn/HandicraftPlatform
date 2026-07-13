@@ -8,6 +8,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.OpenApi.Models;
+using Handicraft.Infrastructure.BackgroundServices;
+using Handicraft.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -42,6 +44,14 @@ builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<IPortfolioService, PortfolioService>();
 builder.Services.AddScoped<IUserDeviceService, UserDeviceService>();
 builder.Services.AddScoped<ICourseEnrollmentService, CourseEnrollmentService>();
+builder.Services.AddScoped<ICourseEpisodeService, CourseEpisodeService>();
+builder.Services.AddHostedService<VideoProcessingBackgroundService>();
+// Video processing services
+builder.Services.AddScoped<IVideoStorageService, LocalVideoStorageService>();
+builder.Services.AddScoped<IVideoProcessor, FfmpegVideoProcessor>();
+builder.Services.AddHostedService<VideoProcessingBackgroundService>();
+
+
 
 // Add Controllers
 builder.Services.AddControllers();
