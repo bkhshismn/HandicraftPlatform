@@ -1,5 +1,6 @@
 ﻿using Handicraft.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using System.Collections.Generic;
 
 namespace Handicraft.Infrastructure.Persistence.Data;
 
@@ -15,6 +16,9 @@ public class AppDbContext : DbContext
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<UserDevice> UserDevices => Set<UserDevice>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<CourseSection> CourseSections { get; set; }
+    public DbSet<CourseLesson> CourseLessons { get; set; }
+    public DbSet<CourseLessonProgress> CourseLessonProgresses { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -157,6 +161,49 @@ public class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasIndex(e => e.Token).IsUnique();
+        });
+        modelBuilder.Entity<CourseSection>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.Title)
+                .HasMaxLength(200)
+                .IsRequired();
+
+            entity.HasOne(x => x.Course)
+                .WithMany(x => x.Sections)
+                .HasForeignKey(x => x.CourseId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<CourseLesson>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.Title)
+                .HasMaxLength(200)
+                .IsRequired();
+
+
+            entity.HasOne(x => x.Section)
+                .WithMany(x => x.Lessons)
+                .HasForeignKey(x => x.SectionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<CourseLessonProgress>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+
+
+            entity.HasOne(x => x.User)
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+
+            entity.HasOne(x => x.Lesson)
+                .WithMany()
+                .HasForeignKey(x => x.LessonId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }
