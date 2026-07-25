@@ -1,5 +1,4 @@
 using AutoMapper;
-using AutoMapper;
 using Handicraft.Application.Contracts.Persistence;
 using Handicraft.Application.Services.Dtos;
 using Handicraft.Domain.Entities;

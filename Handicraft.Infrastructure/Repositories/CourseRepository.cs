@@ -1,4 +1,5 @@
-﻿using Handicraft.Application.Contracts.Persistence;
+﻿
+using Handicraft.Application.Contracts.Persistence;
 using Handicraft.Domain.Entities;
 using Handicraft.Infrastructure.Persistence.Data;
 using Microsoft.EntityFrameworkCore;
@@ -28,8 +29,28 @@ public class CourseRepository : GenericRepository<Course>, ICourseRepository
     public async Task<IReadOnlyList<Course>> GetPublishedCoursesAsync()
     {
         return await _context.Courses
-            .Include(c => c.Episodes)
-            .Where(c => c.Episodes.Any())
+            .Where(x => x.IsPublished)
+            .Include(x => x.Sections)
+                .ThenInclude(x => x.Lessons)
+                    .ThenInclude(x => x.Episode)
+            .AsNoTracking()
             .ToListAsync();
+    }
+    public async Task<List<Course>> GetAllWithContentAsync()
+    {
+        return await _context.Courses
+            .Include(x => x.Sections)
+                .ThenInclude(x => x.Lessons)
+                    .ThenInclude(x => x.Episode)
+            .AsNoTracking()
+            .ToListAsync();
+    }
+    public async Task<Course?> GetByIdWithContentAsync(Guid id)
+    {
+        return await _context.Courses
+            .Include(x => x.Sections)
+                .ThenInclude(x => x.Lessons)
+                    .ThenInclude(x => x.Episode)
+            .FirstOrDefaultAsync(x => x.Id == id);
     }
 }

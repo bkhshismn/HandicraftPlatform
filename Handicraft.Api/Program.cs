@@ -33,6 +33,7 @@ builder.Services.AddScoped<ICourseEnrollmentRepository, CourseEnrollmentReposito
 builder.Services.AddScoped<IUserDeviceRepository, UserDeviceRepository>();
 builder.Services.AddScoped<IPortfolioItemRepository, PortfolioItemRepository>();
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
+builder.Services.AddScoped<ICourseLessonRepository, CourseLessonRepository>();
 
 // AutoMapper
 builder.Services.AddAutoMapper(typeof(Handicraft.Application.Services.MappingProfile).Assembly);
@@ -46,10 +47,14 @@ builder.Services.AddScoped<IUserDeviceService, UserDeviceService>();
 builder.Services.AddScoped<ICourseEnrollmentService, CourseEnrollmentService>();
 builder.Services.AddScoped<ICourseEpisodeService, CourseEpisodeService>();
 builder.Services.AddHostedService<VideoProcessingBackgroundService>();
+builder.Services.AddScoped<ICourseSectionRepository, CourseSectionRepository>();
+builder.Services.AddScoped<ICourseSectionService, CourseSectionService>();
+builder.Services.AddScoped<ICourseLessonService, CourseLessonService>();
+
 // Video processing services
 builder.Services.AddScoped<IVideoStorageService, LocalVideoStorageService>();
 builder.Services.AddScoped<IVideoProcessor, FfmpegVideoProcessor>();
-builder.Services.AddHostedService<VideoProcessingBackgroundService>();
+
 
 
 

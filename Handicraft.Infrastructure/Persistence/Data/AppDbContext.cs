@@ -53,21 +53,41 @@ public class AppDbContext : DbContext
         });
 
         // CourseEpisode
+        // CourseEpisode
         modelBuilder.Entity<CourseEpisode>(entity =>
         {
             entity.ToTable("CourseEpisodes");
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
-            entity.Property(e => e.Description).IsRequired().HasMaxLength(1000);
-            entity.Property(e => e.VideoUrl).IsRequired().HasMaxLength(500);
-            entity.Property(e => e.Order).IsRequired();
-            entity.Property(e => e.DurationSeconds).IsRequired();
-            entity.Property(e => e.IsFree).IsRequired();
-            entity.Property(e => e.CreatedAt).IsRequired();
 
-            entity.HasOne(e => e.Course)
-                .WithMany(c => c.Episodes)
-                .HasForeignKey(e => e.CourseId)
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Title)
+                .IsRequired()
+                .HasMaxLength(200);
+
+            entity.Property(e => e.Description)
+                .IsRequired()
+                .HasMaxLength(1000);
+
+            entity.Property(e => e.VideoUrl)
+                .IsRequired()
+                .HasMaxLength(500);
+
+            entity.Property(e => e.Order)
+                .IsRequired();
+
+            entity.Property(e => e.DurationSeconds)
+                .IsRequired();
+
+            entity.Property(e => e.IsFree)
+                .IsRequired();
+
+            entity.Property(e => e.CreatedAt)
+                .IsRequired();
+
+
+            entity.HasOne(e => e.Lesson)
+                .WithOne(l => l.Episode)
+                .HasForeignKey<CourseEpisode>(e => e.LessonId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
@@ -204,6 +224,8 @@ public class AppDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(x => x.LessonId)
                 .OnDelete(DeleteBehavior.Cascade);
+
         });
+
     }
 }

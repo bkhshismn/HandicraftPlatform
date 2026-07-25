@@ -46,10 +46,10 @@ public class VideoProcessingBackgroundService : BackgroundService
                     try
                     {
                         var rawPath = storage.GetRawVideoPath(
-                            episode.CourseId, episode.Id, episode.RawVideoFileName!);
+                           episode.LessonId, episode.Id, episode.RawVideoFileName!);
 
                         var hlsOutputDir = storage.GetHlsOutputDirectory(
-                            episode.CourseId, episode.Id);
+                            episode.LessonId, episode.Id);
 
                         var (masterPlaylistRelativePath, durationSeconds) =
                             await processor.ConvertToHlsAsync(rawPath, hlsOutputDir, stoppingToken);
@@ -58,9 +58,20 @@ public class VideoProcessingBackgroundService : BackgroundService
                         episode.DurationSeconds = durationSeconds;
                         episode.Status = VideoProcessingStatus.Ready;
                     }
+                    catch (OperationCanceledException)
+                    {
+                        _logger.LogInformation(
+                            "Video processing cancelled.");
+
+                        break;
+                    }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, "Failed to process episode {EpisodeId}", episode.Id);
+                        _logger.LogError(
+                            ex,
+                            "Failed to process episode {EpisodeId}",
+                            episode.Id);
+
                         episode.Status = VideoProcessingStatus.Failed;
                     }
 
@@ -72,7 +83,17 @@ public class VideoProcessingBackgroundService : BackgroundService
                 _logger.LogError(ex, "Error in VideoProcessingBackgroundService loop");
             }
 
-            await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
+            try
+            {
+                await Task.Delay(
+                    TimeSpan.FromSeconds(10),
+                    stoppingToken);
+            }
+            catch (TaskCanceledException)
+            {
+                _logger.LogInformation(
+                    "Video processing service is stopping.");
+            }
         }
     }
 }

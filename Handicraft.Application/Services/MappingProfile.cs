@@ -2,6 +2,7 @@ using AutoMapper;
 using Handicraft.Application.Services.Dtos;
 using Handicraft.Domain.Entities;
 
+
 namespace Handicraft.Application.Services;
 
 public class MappingProfile : Profile
@@ -10,6 +11,8 @@ public class MappingProfile : Profile
     {
         // Course
         CreateMap<Course, CourseDto>();
+        CreateMap<CourseSection, CourseSectionDto>();
+        CreateMap<CourseLesson, CourseLessonDto>();
         CreateMap<CourseEpisode, CourseEpisodeDto>();
         CreateMap<CourseCreateDto, Course>();
         CreateMap<CourseEpisodeCreateDto, CourseEpisode>();

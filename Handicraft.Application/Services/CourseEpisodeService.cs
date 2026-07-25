@@ -19,22 +19,38 @@ public class CourseEpisodeService : ICourseEpisodeService
         _videoStorage = videoStorage;
     }
 
-    public async Task<CourseEpisodeDto> CreateAndUploadAsync(Guid courseId, CourseEpisodeUploadDto dto)
+    public async Task<CourseEpisodeDto> CreateAndUploadAsync(
+    Guid lessonId,
+    CourseEpisodeUploadDto dto)
     {
         var episode = new CourseEpisode
         {
-            Id = Guid.NewGuid(), // اگر BaseEntity این را دارد
-            CourseId = courseId,
+            Id = Guid.NewGuid(),
+
+            LessonId = lessonId,
+
             Title = dto.Title,
+
             Description = dto.Description,
+
+            VideoUrl = string.Empty,
+
             Order = dto.Order,
+
+            DurationSeconds = 0,
+
             IsFree = dto.IsFree,
-            Status = VideoProcessingStatus.Pending
+
+            Status = VideoProcessingStatus.Pending,
+
+            CreatedAt = DateTime.UtcNow
         };
 
         await using var stream = dto.VideoFile.OpenReadStream();
-        await _videoStorage.SaveRawVideoAsync(
-            courseId, episode.Id, stream, dto.VideoFile.FileName);
+        await _videoStorage.SaveRawVideoAsync(  lessonId,
+                                                episode.Id,
+                                                stream,
+                                                dto.VideoFile.FileName);
 
         episode.RawVideoFileName = dto.VideoFile.FileName;
 
@@ -51,31 +67,54 @@ public class CourseEpisodeService : ICourseEpisodeService
         return episode is null ? null : MapToDto(episode);
     }
 
-    public async Task<bool> UserHasAccessAsync(ClaimsPrincipal user, Guid courseId, Guid episodeId)
+    public async Task<bool> UserHasAccessAsync(
+     ClaimsPrincipal user,
+     Guid lessonId,
+     Guid episodeId)
     {
         var episode = await _episodeRepository.GetByIdAsync(episodeId);
-        if (episode is null) return false;
-        if (episode.IsFree) return true;
 
-        // TODO: چک enrollment واقعی کاربر - نیاز به ICourseEnrollmentRepository
+        if (episode is null)
+            return false;
+
+        if (episode.IsFree)
+            return true;
+
+        // بعداً Enrollment را از Lesson -> Section -> Course چک می‌کنیم
         return false;
     }
 
-    public async Task<string?> ResolveHlsFilePathAsync(Guid courseId, Guid episodeId, string relativePath)
+    public async Task<string?> ResolveHlsFilePathAsync(
+      Guid lessonId,
+      Guid episodeId,
+      string relativePath)
     {
         var episode = await _episodeRepository.GetByIdAsync(episodeId);
-        if (episode is null || episode.Status != VideoProcessingStatus.Ready) return null;
+
+        if (episode is null ||
+            episode.Status != VideoProcessingStatus.Ready)
+            return null;
+
 
         var hlsFolder = Path.GetDirectoryName(
-            _videoStorage.GetHlsPlaylistPath(courseId, episodeId)) ?? string.Empty;
+            _videoStorage.GetHlsPlaylistPath(
+                lessonId,
+                episodeId)) ?? string.Empty;
 
-        return Path.Combine(hlsFolder, relativePath);
+
+        return Path.Combine(
+            hlsFolder,
+            relativePath);
     }
 
-    public async Task<IReadOnlyList<CourseEpisodeDto>> GetEpisodesByCourseIdAsync(Guid courseId)
+    public async Task<IReadOnlyList<CourseEpisodeDto>> GetEpisodesByLessonIdAsync(  Guid lessonId)
     {
-        var episodes = await _episodeRepository.GetEpisodesByCourseIdAsync(courseId);
-        return episodes.Select(MapToDto).ToList();
+        var episodes = await _episodeRepository
+            .GetEpisodesByLessonIdAsync(lessonId);
+
+        return episodes
+            .Select(MapToDto)
+            .ToList();
     }
 
     private static CourseEpisodeDto MapToDto(CourseEpisode e) => new(

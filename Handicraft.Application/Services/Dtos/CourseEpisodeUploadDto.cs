@@ -4,9 +4,13 @@ namespace Handicraft.Application.Services.Dtos;
 
 public class CourseEpisodeUploadDto
 {
-    public string Title { get; set; } = null!;
+    public string Title { get; set; } = string.Empty;
+
     public string Description { get; set; } = string.Empty;
+
     public int Order { get; set; }
+
     public bool IsFree { get; set; }
+
     public IFormFile VideoFile { get; set; } = null!;
 }

@@ -10,7 +10,7 @@ public enum VideoProcessingStatus
 
 public class CourseEpisode : BaseEntity
 {
-    public Guid CourseId { get; set; }
+    public Guid LessonId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public string VideoUrl { get; set; } = string.Empty; // مسیر نهایی master.m3u8 پس از پردازش
@@ -23,5 +23,5 @@ public class CourseEpisode : BaseEntity
     public VideoProcessingStatus Status { get; set; } = VideoProcessingStatus.Pending;
 
     // Navigation Property
-    public Course Course { get; set; } = null!;
+    public CourseLesson Lesson { get; set; } = null!;
 }

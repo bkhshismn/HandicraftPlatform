@@ -1,7 +1,7 @@
 using Handicraft.Application.Contracts.Persistence;
+using Handicraft.Application.Contracts.Services;
 using Handicraft.Application.Services.Dtos;
 using Handicraft.Domain.Entities;
-using Handicraft.Application.Contracts.Services;
 
 namespace Handicraft.Application.Services;
 
@@ -14,80 +14,106 @@ public class CourseService : ICourseService
         _courseRepository = courseRepository;
     }
 
-    public async Task<IEnumerable<CourseDto>> GetAllAsync()
-    {
-        var courses = await _courseRepository.GetAllWithEpisodesAsync();
-        return courses.Select(MapToDto).ToList();
-    }
-
-    public async Task<IEnumerable<CourseDto>> GetPublishedAsync()
-    {
-        var courses = await _courseRepository.GetPublishedCoursesAsync();
-        return courses.Select(MapToDto).ToList();
-    }
-
-    public async Task<CourseDto?> GetByIdAsync(Guid id)
-    {
-        var course = await _courseRepository.GetByIdWithEpisodesAsync(id);
-        if (course == null) return null;
-        return MapToDto(course);
-    }
 
     public async Task<CourseDto> CreateAsync(CourseCreateDto dto)
     {
         var course = new Course
         {
+            Id = Guid.NewGuid(),
             Title = dto.Title,
             Description = dto.Description,
             CoverImageUrl = dto.CoverImageUrl,
             Price = dto.Price,
             IsPublished = dto.IsPublished,
-            DurationMinutes = dto.DurationMinutes
+            DurationMinutes = dto.DurationMinutes,
+            CreatedAt = DateTime.UtcNow
         };
 
-        if (dto.Episodes != null && dto.Episodes.Any())
-        {
-            foreach (var ep in dto.Episodes)
-            {
-                course.Episodes.Add(new CourseEpisode
-                {
-                    Id = Guid.NewGuid(),
-                    Title = ep.Title,
-                    Description = ep.Description,
-                    VideoUrl = ep.VideoUrl,
-                    Order = ep.Order,
-                    DurationSeconds = ep.DurationSeconds,
-                    IsFree = ep.IsFree,
-                    CreatedAt = DateTime.UtcNow
-                });
-            }
-        }
-
         var created = await _courseRepository.AddAsync(course);
+
         return MapToDto(created);
     }
 
+
+    public async Task<IEnumerable<CourseDto>> GetAllAsync()
+    {
+        var courses = await _courseRepository.GetAllWithContentAsync();
+
+        return courses.Select(MapToDto).ToList();
+    }
+
+
+    public async Task<IEnumerable<CourseDto>> GetPublishedAsync()
+    {
+        var courses = await _courseRepository.GetPublishedCoursesAsync();
+
+        return courses.Select(MapToDto).ToList();
+    }
+
+
+    public async Task<CourseDto?> GetByIdAsync(Guid id)
+    {
+        var course = await _courseRepository.GetByIdWithContentAsync(id);
+
+        if (course == null)
+            return null;
+
+        return MapToDto(course);
+    }
+
+
     private static CourseDto MapToDto(Course c)
     {
-        var episodes = c.Episodes?.OrderBy(e => e.Order).Select(e => new Dtos.CourseEpisodeDto(
-            e.Id,
-            e.Title,
-            e.Description,
-            e.VideoUrl,
-            e.Order,
-            e.DurationSeconds,
-            e.IsFree
-        )).ToList() ?? new List<CourseEpisodeDto>();
+        var sections = c.Sections?
+            .OrderBy(x => x.OrderIndex)
+            .Select(section => new CourseSectionDto
+            {
+                Id = section.Id,
+                CourseId = section.CourseId,
+                Title = section.Title,
+                OrderIndex = section.OrderIndex,
 
-        return new CourseDto(
-            c.Id,
-            c.Title,
-            c.Description,
-            c.CoverImageUrl,
-            c.Price,
-            c.IsPublished,
-            c.DurationMinutes,
-            episodes
-        );
+                Lessons = section.Lessons?
+                    .OrderBy(x => x.OrderIndex)
+                    .Select(lesson => new CourseLessonDto
+                    {
+                        Id = lesson.Id,
+                        Title = lesson.Title,
+                        Description = lesson.Description,
+                        DurationSeconds = lesson.DurationSeconds,
+                        IsFreePreview = lesson.IsFreePreview,
+                        OrderIndex = lesson.OrderIndex,
+
+                        EpisodeId = lesson.Episode == null
+                            ? null
+                            : lesson.Episode.Id,
+
+                        VideoStatus = lesson.Episode == null
+                            ? null
+                            : lesson.Episode.Status.ToString(),
+
+                        HasVideo = lesson.Episode != null
+                    })
+                    .ToList()
+                    ?? new List<CourseLessonDto>()
+            })
+            .ToList()
+            ?? new List<CourseSectionDto>();
+
+
+        return new CourseDto
+        {
+            Id = c.Id,
+            Title = c.Title,
+            Description = c.Description,
+            CoverImageUrl = c.CoverImageUrl,
+            Price = c.Price,
+            IsFree = c.IsFree,
+            IsPublished = c.IsPublished,
+            Level = c.Level,
+            Category = c.Category,
+            DurationMinutes = c.DurationMinutes,
+            Sections = sections
+        };
     }
 }

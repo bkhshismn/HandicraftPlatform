@@ -5,9 +5,27 @@ namespace Handicraft.Application.Contracts.Services;
 
 public interface ICourseEpisodeService
 {
-    Task<CourseEpisodeDto> CreateAndUploadAsync(Guid courseId, CourseEpisodeUploadDto dto);
-    Task<CourseEpisodeDto?> GetProcessingStatusAsync(Guid episodeId);
-    Task<bool> UserHasAccessAsync(ClaimsPrincipal user, Guid courseId, Guid episodeId);
-    Task<string?> ResolveHlsFilePathAsync(Guid courseId, Guid episodeId, string relativePath);
-    Task<IReadOnlyList<CourseEpisodeDto>> GetEpisodesByCourseIdAsync(Guid courseId);
+    Task<CourseEpisodeDto> CreateAndUploadAsync(
+        Guid lessonId,
+        CourseEpisodeUploadDto dto);
+
+
+    Task<CourseEpisodeDto?> GetProcessingStatusAsync(
+        Guid episodeId);
+
+
+    Task<bool> UserHasAccessAsync(
+        ClaimsPrincipal user,
+        Guid lessonId,
+        Guid episodeId);
+
+
+    Task<string?> ResolveHlsFilePathAsync(
+        Guid lessonId,
+        Guid episodeId,
+        string relativePath);
+
+
+    Task<IReadOnlyList<CourseEpisodeDto>> GetEpisodesByLessonIdAsync(
+        Guid lessonId);
 }

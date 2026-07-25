@@ -124,7 +124,7 @@ namespace Handicraft.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("CourseId")
+                    b.Property<Guid?>("CourseId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
@@ -140,6 +140,9 @@ namespace Handicraft.Infrastructure.Migrations
 
                     b.Property<bool>("IsFree")
                         .HasColumnType("boolean");
+
+                    b.Property<Guid>("LessonId")
+                        .HasColumnType("uuid");
 
                     b.Property<int>("Order")
                         .HasColumnType("integer");
@@ -166,6 +169,9 @@ namespace Handicraft.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CourseId");
+
+                    b.HasIndex("LessonId")
+                        .IsUnique();
 
                     b.ToTable("CourseEpisodes", (string)null);
                 });
@@ -201,9 +207,6 @@ namespace Handicraft.Infrastructure.Migrations
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("VideoPath")
-                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
@@ -514,13 +517,17 @@ namespace Handicraft.Infrastructure.Migrations
 
             modelBuilder.Entity("Handicraft.Domain.Entities.CourseEpisode", b =>
                 {
-                    b.HasOne("Handicraft.Domain.Entities.Course", "Course")
+                    b.HasOne("Handicraft.Domain.Entities.Course", null)
                         .WithMany("Episodes")
-                        .HasForeignKey("CourseId")
+                        .HasForeignKey("CourseId");
+
+                    b.HasOne("Handicraft.Domain.Entities.CourseLesson", "Lesson")
+                        .WithOne("Episode")
+                        .HasForeignKey("Handicraft.Domain.Entities.CourseEpisode", "LessonId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Course");
+                    b.Navigation("Lesson");
                 });
 
             modelBuilder.Entity("Handicraft.Domain.Entities.CourseLesson", b =>
@@ -604,6 +611,11 @@ namespace Handicraft.Infrastructure.Migrations
                     b.Navigation("Episodes");
 
                     b.Navigation("Sections");
+                });
+
+            modelBuilder.Entity("Handicraft.Domain.Entities.CourseLesson", b =>
+                {
+                    b.Navigation("Episode");
                 });
 
             modelBuilder.Entity("Handicraft.Domain.Entities.CourseSection", b =>
