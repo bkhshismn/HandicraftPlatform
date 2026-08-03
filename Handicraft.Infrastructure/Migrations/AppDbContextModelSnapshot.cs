@@ -322,6 +322,29 @@ namespace Handicraft.Infrastructure.Migrations
                     b.ToTable("Orders", (string)null);
                 });
 
+            modelBuilder.Entity("Handicraft.Domain.Entities.PortfolioImage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ImageUrl")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("PortfolioItemId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PortfolioItemId");
+
+                    b.ToTable("PortfolioImages");
+                });
+
             modelBuilder.Entity("Handicraft.Domain.Entities.PortfolioItem", b =>
                 {
                     b.Property<Guid>("Id")
@@ -340,11 +363,6 @@ namespace Handicraft.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
-
-                    b.Property<string>("ImageUrl")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
 
                     b.Property<bool>("IsVisible")
                         .HasColumnType("boolean");
@@ -582,6 +600,17 @@ namespace Handicraft.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Handicraft.Domain.Entities.PortfolioImage", b =>
+                {
+                    b.HasOne("Handicraft.Domain.Entities.PortfolioItem", "PortfolioItem")
+                        .WithMany("Images")
+                        .HasForeignKey("PortfolioItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PortfolioItem");
+                });
+
             modelBuilder.Entity("Handicraft.Domain.Entities.RefreshToken", b =>
                 {
                     b.HasOne("Handicraft.Domain.Entities.User", "User")
@@ -621,6 +650,11 @@ namespace Handicraft.Infrastructure.Migrations
             modelBuilder.Entity("Handicraft.Domain.Entities.CourseSection", b =>
                 {
                     b.Navigation("Lessons");
+                });
+
+            modelBuilder.Entity("Handicraft.Domain.Entities.PortfolioItem", b =>
+                {
+                    b.Navigation("Images");
                 });
 
             modelBuilder.Entity("Handicraft.Domain.Entities.User", b =>

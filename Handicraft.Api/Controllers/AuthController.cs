@@ -68,7 +68,9 @@ public class AuthController : ControllerBase
             Id = Guid.NewGuid(),
             Phone = dto.Phone,
             Name = dto.Name,
-            Role = dto.Role ?? "User",
+
+            Role = "User",
+
             IsActive = true,
             CreatedAt = DateTime.UtcNow,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password)
@@ -127,16 +129,31 @@ public class AuthController : ControllerBase
         if (_refreshTokenRepository == null) return StatusCode(500, new { message = "Refresh token repository not available" });
 
         var stored = await _refreshTokenRepository.GetByTokenAsync(dto.Token);
-        if (stored == null) return Unauthorized();
-        if (stored.ExpiresAt < DateTime.UtcNow) return Unauthorized(new { message = "Refresh token expired" });
+        if (stored == null)
+            return Unauthorized();
+
+        if (stored.IsRevoked)
+            return Unauthorized(new
+            {
+                message = "Refresh token has been revoked"
+            });
+
+        if (stored.ExpiresAt <= DateTime.UtcNow)
+            return Unauthorized(new
+            {
+                message = "Refresh token expired"
+            });
 
         var user = await _userRepository.GetByIdAsync(stored.UserId);
         if (user == null) return Unauthorized();
 
         // rotate refresh token
         stored.IsRevoked = true;
+
         var newRefresh = CreateRefreshToken(user.Id);
+
         stored.ReplacedByToken = newRefresh.Token;
+
         await _refreshTokenRepository.UpdateAsync(stored);
         await _refreshTokenRepository.AddAsync(newRefresh);
 
@@ -150,8 +167,13 @@ public class AuthController : ControllerBase
         if (dto == null) return BadRequest();
 
         var user = await _userRepository.GetByPhoneAsync(dto.Phone);
-        if (user == null) return Unauthorized(new { message = "Invalid credentials" });
-
+        if (!user.IsActive)
+        {
+            return Unauthorized(new
+            {
+                message = "User account is inactive"
+            });
+        }
         var verified = BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash);
         if (!verified) return Unauthorized(new { message = "Invalid credentials" });
 

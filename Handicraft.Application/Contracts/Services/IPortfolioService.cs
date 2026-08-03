@@ -7,4 +7,5 @@ public interface IPortfolioService
     Task<IEnumerable<PortfolioItemDto>> GetPublishedAsync();
     Task<IEnumerable<PortfolioItemDto>> GetByCategoryAsync(string category);
     Task<PortfolioItemDto> CreateAsync(PortfolioCreateDto dto);
+    Task<PortfolioItemDto?> GetByIdAsync(Guid id);
 }

@@ -31,8 +31,22 @@ public class PortfolioService : IPortfolioService
 
     public async Task<PortfolioItemDto> CreateAsync(PortfolioCreateDto dto)
     {
-        var item = _mapper.Map<PortfolioItem>(dto);
-        var created = await _repo.AddAsync(item);
-        return _mapper.Map<PortfolioItemDto>(created);
+        var entity = _mapper.Map<PortfolioItem>(dto);
+
+        await _repo.AddAsync(entity);
+
+        var created =
+            await _repo.GetByIdAsync(entity.Id);
+
+        return _mapper.Map<PortfolioItemDto>(created!);
+    }
+    public async Task<PortfolioItemDto?> GetByIdAsync(Guid id)
+    {
+        var item = await _repo.GetByIdAsync(id);
+
+        if (item is null)
+            return null;
+
+        return _mapper.Map<PortfolioItemDto>(item);
     }
 }

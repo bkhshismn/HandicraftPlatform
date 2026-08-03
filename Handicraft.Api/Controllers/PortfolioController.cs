@@ -37,4 +37,14 @@ public class PortfolioController : ControllerBase
         var created = await _service.CreateAsync(dto);
         return CreatedAtAction(null, created);
     }
+    [HttpGet("{id:guid}")]
+    public async Task<ActionResult<PortfolioItemDto>> GetById(Guid id)
+    {
+        var item = await _service.GetByIdAsync(id);
+
+        if (item is null)
+            return NotFound();
+
+        return Ok(item);
+    }
 }

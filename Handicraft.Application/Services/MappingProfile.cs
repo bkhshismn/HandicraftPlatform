@@ -26,6 +26,7 @@ public class MappingProfile : Profile
         CreateMap<OrderCreateDto, Order>();
 
         // Portfolio
+        CreateMap<PortfolioImage, PortfolioImageDto>();
         CreateMap<PortfolioItem, PortfolioItemDto>();
         CreateMap<PortfolioCreateDto, PortfolioItem>();
 

@@ -19,6 +19,7 @@ public class AppDbContext : DbContext
     public DbSet<CourseSection> CourseSections { get; set; }
     public DbSet<CourseLesson> CourseLessons { get; set; }
     public DbSet<CourseLessonProgress> CourseLessonProgresses { get; set; }
+    public DbSet<PortfolioImage> PortfolioImages => Set<PortfolioImage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -121,7 +122,6 @@ public class AppDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
             entity.Property(e => e.Category).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.ImageUrl).IsRequired().HasMaxLength(500);
             entity.Property(e => e.Description).IsRequired().HasMaxLength(1000);
             entity.Property(e => e.IsVisible).IsRequired();
             entity.Property(e => e.CreatedAt).IsRequired();
@@ -226,6 +226,11 @@ public class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
 
         });
+        modelBuilder.Entity<PortfolioImage>()
+            .HasOne(x => x.PortfolioItem)
+            .WithMany(x => x.Images)
+            .HasForeignKey(x => x.PortfolioItemId)
+            .OnDelete(DeleteBehavior.Cascade);
 
     }
 }

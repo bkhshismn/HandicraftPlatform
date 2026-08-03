@@ -4,8 +4,8 @@ public record PortfolioItemDto(
     Guid Id,
     string Title,
     string Category,
-    string ImageUrl,
     string Description,
     bool IsVisible,
-    DateTime CreatedAt
+    DateTime CreatedAt,
+    IReadOnlyList<PortfolioImageDto> Images
 );
