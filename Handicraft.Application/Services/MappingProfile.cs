@@ -37,5 +37,8 @@ public class MappingProfile : Profile
         // CourseEnrollment
         CreateMap<CourseEnrollment, CourseEnrollmentDto>();
         CreateMap<CourseEnrollmentCreateDto, CourseEnrollment>();
+
+        // PortfolioImage
+        CreateMap<PortfolioImage, PortfolioImageDto>();
     }
 }

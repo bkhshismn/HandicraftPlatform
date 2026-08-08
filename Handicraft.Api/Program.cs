@@ -35,6 +35,9 @@ builder.Services.AddScoped<IPortfolioItemRepository, PortfolioItemRepository>();
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<ICourseLessonRepository, CourseLessonRepository>();
 
+//Image
+builder.Services.AddScoped<IPortfolioImageRepository, PortfolioImageRepository>();
+
 // AutoMapper
 builder.Services.AddAutoMapper(typeof(Handicraft.Application.Services.MappingProfile).Assembly);
 
@@ -43,6 +46,7 @@ builder.Services.AddScoped<ICourseService, CourseService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<IPortfolioService, PortfolioService>();
+builder.Services.AddScoped<IPortfolioImageService, PortfolioImageService>();
 builder.Services.AddScoped<IUserDeviceService, UserDeviceService>();
 builder.Services.AddScoped<ICourseEnrollmentService, CourseEnrollmentService>();
 builder.Services.AddScoped<ICourseEpisodeService, CourseEpisodeService>();
