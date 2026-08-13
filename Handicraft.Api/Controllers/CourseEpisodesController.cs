@@ -22,13 +22,50 @@ public class CourseEpisodesController : ControllerBase
     [Authorize(Roles = "Admin,Instructor")]
     [RequestSizeLimit(2_000_000_000)]
     public async Task<IActionResult> UploadEpisode(
-        Guid lessonId,
-        [FromForm] CourseEpisodeUploadDto dto)
+    Guid lessonId,
+    [FromForm] CourseEpisodeUploadDto dto)
     {
+        Console.WriteLine("========== UPLOAD DEBUG ==========");
+        Console.WriteLine($"LessonId: {lessonId}");
+        Console.WriteLine($"Title: {dto.Title}");
+        Console.WriteLine($"Description: {dto.Description}");
+        Console.WriteLine($"Order: {dto.Order}");
+        Console.WriteLine($"IsFree: {dto.IsFree}");
+        Console.WriteLine($"VideoFile null: {dto.VideoFile == null}");
+        Console.WriteLine($"VideoFile name: {dto.VideoFile?.FileName}");
+        Console.WriteLine($"VideoFile length: {dto.VideoFile?.Length}");
+        Console.WriteLine($"VideoFile content type: {dto.VideoFile?.ContentType}");
+
+        if (!ModelState.IsValid)
+        {
+            Console.WriteLine("========== MODEL STATE ERRORS ==========");
+
+            foreach (var item in ModelState)
+            {
+                foreach (var error in item.Value.Errors)
+                {
+                    Console.WriteLine(
+                        $"[{item.Key}] {error.ErrorMessage}");
+
+                    if (error.Exception != null)
+                    {
+                        Console.WriteLine(
+                            $"Exception: {error.Exception.Message}");
+                    }
+                }
+            }
+
+            return ValidationProblem(ModelState);
+        }
+
+        Console.WriteLine("========== CALLING SERVICE ==========");
+
         var result =
             await _episodeService.CreateAndUploadAsync(
                 lessonId,
                 dto);
+
+        Console.WriteLine("========== UPLOAD SERVICE SUCCESS ==========");
 
         return Ok(result);
     }
@@ -91,4 +128,15 @@ public class CourseEpisodesController : ControllerBase
             fullPath,
             contentType);
     }
+
+    [HttpGet("~/api/lessons/{lessonId:guid}/episodes")]
+    [Authorize]
+    public async Task<IActionResult> GetEpisodes(Guid lessonId)
+    {
+        var episodes =
+            await _episodeService.GetEpisodesByLessonIdAsync(lessonId);
+
+        return Ok(episodes);
+    }
+
 }

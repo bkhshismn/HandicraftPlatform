@@ -1,3 +1,5 @@
+using Handicraft.Domain.Entities;
+
 namespace Handicraft.Application.Services.Dtos;
 
 public record CourseEpisodeDto(
@@ -7,5 +9,6 @@ public record CourseEpisodeDto(
     string VideoUrl,
     int Order,
     int DurationSeconds,
-    bool IsFree
+    bool IsFree,
+    VideoProcessingStatus Status
 );

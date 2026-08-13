@@ -89,22 +89,50 @@ public class CourseEpisodeService : ICourseEpisodeService
       Guid episodeId,
       string relativePath)
     {
-        var episode = await _episodeRepository.GetByIdAsync(episodeId);
+        var episode =
+            await _episodeRepository.GetByIdAsync(episodeId);
 
         if (episode is null ||
+            episode.LessonId != lessonId ||
             episode.Status != VideoProcessingStatus.Ready)
+        {
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(relativePath))
             return null;
 
+        // جلوگیری از Path Traversal
+        var normalizedPath =
+            relativePath
+                .Replace('\\', '/')
+                .TrimStart('/');
 
-        var hlsFolder = Path.GetDirectoryName(
-            _videoStorage.GetHlsPlaylistPath(
+        if (normalizedPath.Contains(".."))
+            return null;
+
+        var hlsFolder =
+            _videoStorage.GetHlsOutputDirectory(
                 lessonId,
-                episodeId)) ?? string.Empty;
+                episodeId);
 
+        var fullPath =
+            Path.GetFullPath(
+                Path.Combine(
+                    hlsFolder,
+                    normalizedPath));
 
-        return Path.Combine(
-            hlsFolder,
-            relativePath);
+        var fullHlsFolder =
+            Path.GetFullPath(hlsFolder);
+
+        if (!fullPath.StartsWith(
+                fullHlsFolder,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return fullPath;
     }
 
     public async Task<IReadOnlyList<CourseEpisodeDto>> GetEpisodesByLessonIdAsync(  Guid lessonId)
@@ -118,12 +146,13 @@ public class CourseEpisodeService : ICourseEpisodeService
     }
 
     private static CourseEpisodeDto MapToDto(CourseEpisode e) => new(
-        e.Id,
-        e.Title,
-        e.Description,
-        e.VideoUrl,
-        e.Order,
-        e.DurationSeconds,
-        e.IsFree
-    );
+     e.Id,
+     e.Title,
+     e.Description,
+     e.VideoUrl,
+     e.Order,
+     e.DurationSeconds,
+     e.IsFree,
+     e.Status
+ );
 }
