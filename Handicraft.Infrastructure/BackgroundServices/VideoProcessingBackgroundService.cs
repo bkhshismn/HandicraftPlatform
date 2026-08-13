@@ -1,6 +1,5 @@
 ﻿using Handicraft.Application.Contracts.Persistence;
 using Handicraft.Application.Contracts.Services;
-using Handicraft.Application.Services;
 using Handicraft.Domain.Entities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -21,47 +20,199 @@ public class VideoProcessingBackgroundService : BackgroundService
         _logger = logger;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    protected override async Task ExecuteAsync(
+        CancellationToken stoppingToken)
     {
+        _logger.LogInformation(
+            "========== VIDEO PROCESSING WORKER STARTED ==========");
+
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
-                using var scope = _scopeFactory.CreateScope();
-                var episodeRepo = scope.ServiceProvider
-                    .GetRequiredService<ICourseEpisodeRepository>();
-                var storage = scope.ServiceProvider
-                    .GetRequiredService<IVideoStorageService>();
-                var processor = scope.ServiceProvider
-                    .GetRequiredService<IVideoProcessor>();
+                using var scope =
+                    _scopeFactory.CreateScope();
 
-                var pendingEpisodes = await episodeRepo.GetAsync(
-                    e => e.Status == VideoProcessingStatus.Pending);
+                var episodeRepo =
+                    scope.ServiceProvider
+                        .GetRequiredService<ICourseEpisodeRepository>();
+
+                var storage =
+                    scope.ServiceProvider
+                        .GetRequiredService<IVideoStorageService>();
+
+                var processor =
+                    scope.ServiceProvider
+                        .GetRequiredService<IVideoProcessor>();
+
+                _logger.LogInformation(
+                    "[VIDEO WORKER] Checking pending episodes...");
+
+                var pendingEpisodes =
+                    await episodeRepo.GetAsync(
+                        e => e.Status == VideoProcessingStatus.Pending);
+
+                _logger.LogInformation(
+                    "[VIDEO WORKER] Pending count: {Count}",
+                    pendingEpisodes.Count);
 
                 foreach (var episode in pendingEpisodes)
                 {
-                    episode.Status = VideoProcessingStatus.Processing;
-                    await episodeRepo.UpdateAsync(episode);
+                    if (stoppingToken.IsCancellationRequested)
+                        break;
+
+                    _logger.LogInformation(
+                        "========================================");
+
+                    _logger.LogInformation(
+                        "[VIDEO WORKER] Processing episode: {EpisodeId}",
+                        episode.Id);
+
+                    _logger.LogInformation(
+                        "[VIDEO WORKER] LessonId: {LessonId}",
+                        episode.LessonId);
+
+                    _logger.LogInformation(
+                        "[VIDEO WORKER] FileName: {FileName}",
+                        episode.RawVideoFileName);
 
                     try
                     {
-                        var rawPath = storage.GetRawVideoPath(
-                           episode.LessonId, episode.Id, episode.RawVideoFileName!);
+                        if (string.IsNullOrWhiteSpace(
+                                episode.RawVideoFileName))
+                        {
+                            throw new InvalidOperationException(
+                                "RawVideoFileName is empty.");
+                        }
 
-                        var hlsOutputDir = storage.GetHlsOutputDirectory(
-                            episode.LessonId, episode.Id);
+                        var rawPath =
+                            storage.GetRawVideoPath(
+                                episode.LessonId,
+                                episode.Id,
+                                episode.RawVideoFileName);
 
-                        var (masterPlaylistRelativePath, durationSeconds) =
-                            await processor.ConvertToHlsAsync(rawPath, hlsOutputDir, stoppingToken);
+                        _logger.LogInformation(
+                            "[VIDEO WORKER] Raw path: {RawPath}",
+                            rawPath);
 
-                        episode.VideoUrl = masterPlaylistRelativePath;
-                        episode.DurationSeconds = durationSeconds;
-                        episode.Status = VideoProcessingStatus.Ready;
+                        var rawExists =
+                            File.Exists(rawPath);
+
+                        _logger.LogInformation(
+                            "[VIDEO WORKER] Raw file exists: {Exists}",
+                            rawExists);
+
+                        if (!rawExists)
+                        {
+                            throw new FileNotFoundException(
+                                "Raw video file was not found.",
+                                rawPath);
+                        }
+
+                        var rawInfo =
+                            new FileInfo(rawPath);
+
+                        _logger.LogInformation(
+                            "[VIDEO WORKER] Raw file size: {Size} bytes",
+                            rawInfo.Length);
+
+                        // ---------------------------------
+                        // Processing
+                        // ---------------------------------
+
+                        episode.Status =
+                            VideoProcessingStatus.Processing;
+
+                        await episodeRepo.UpdateAsync(episode);
+
+                        _logger.LogInformation(
+                            "[VIDEO WORKER] Status => Processing");
+
+                        var hlsOutputDir =
+                            storage.GetHlsOutputDirectory(
+                                episode.LessonId,
+                                episode.Id);
+
+                        _logger.LogInformation(
+                            "[VIDEO WORKER] HLS output directory: {HlsDirectory}",
+                            hlsOutputDir);
+
+                        _logger.LogInformation(
+                            "[VIDEO WORKER] Starting FFmpeg...");
+
+                        var result =
+                            await processor.ConvertToHlsAsync(
+                                rawPath,
+                                hlsOutputDir,
+                                stoppingToken);
+
+                        _logger.LogInformation(
+                            "[VIDEO WORKER] FFmpeg completed.");
+
+                        _logger.LogInformation(
+                            "[VIDEO WORKER] Playlist: {Playlist}",
+                            result.MasterPlaylistRelativePath);
+
+                        _logger.LogInformation(
+                            "[VIDEO WORKER] Duration: {Duration} seconds",
+                            result.DurationSeconds);
+
+                        // ---------------------------------
+                        // Validate generated HLS
+                        // ---------------------------------
+
+                        var masterPlaylistPath =
+                            Path.Combine(
+                                hlsOutputDir,
+                                result.MasterPlaylistRelativePath);
+
+                        _logger.LogInformation(
+                            "[VIDEO WORKER] Master playlist path: {Path}",
+                            masterPlaylistPath);
+
+                        var playlistExists =
+                            File.Exists(masterPlaylistPath);
+
+                        _logger.LogInformation(
+                            "[VIDEO WORKER] Master playlist exists: {Exists}",
+                            playlistExists);
+
+                        if (!playlistExists)
+                        {
+                            throw new InvalidOperationException(
+                                $"FFmpeg completed but master playlist was not found: {masterPlaylistPath}");
+                        }
+
+                        // ---------------------------------
+                        // Ready
+                        // ---------------------------------
+
+                        episode.VideoUrl =
+                            result.MasterPlaylistRelativePath;
+
+                        episode.DurationSeconds =
+                            result.DurationSeconds;
+
+                        episode.Status =
+                            VideoProcessingStatus.Ready;
+
+                        await episodeRepo.UpdateAsync(episode);
+
+                        _logger.LogInformation(
+                            "[VIDEO WORKER] Status => Ready");
+
+                        _logger.LogInformation(
+                            "[VIDEO WORKER] VideoUrl: {VideoUrl}",
+                            episode.VideoUrl);
+
+                        _logger.LogInformation(
+                            "[VIDEO WORKER] Episode {EpisodeId} processed successfully.",
+                            episode.Id);
                     }
                     catch (OperationCanceledException)
                     {
                         _logger.LogInformation(
-                            "Video processing cancelled.");
+                            "[VIDEO WORKER] Processing cancelled.");
 
                         break;
                     }
@@ -69,31 +220,39 @@ public class VideoProcessingBackgroundService : BackgroundService
                     {
                         _logger.LogError(
                             ex,
-                            "Failed to process episode {EpisodeId}",
+                            "[VIDEO WORKER] FAILED processing episode {EpisodeId}",
                             episode.Id);
 
-                        episode.Status = VideoProcessingStatus.Failed;
-                    }
+                        episode.Status =
+                            VideoProcessingStatus.Failed;
 
-                    await episodeRepo.UpdateAsync(episode);
+                        await episodeRepo.UpdateAsync(episode);
+
+                        _logger.LogInformation(
+                            "[VIDEO WORKER] Status => Failed");
+                    }
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error in VideoProcessingBackgroundService loop");
+                _logger.LogError(
+                    ex,
+                    "[VIDEO WORKER] Error in worker loop");
             }
 
             try
             {
                 await Task.Delay(
-                    TimeSpan.FromSeconds(10),
+                    TimeSpan.FromSeconds(5),
                     stoppingToken);
             }
-            catch (TaskCanceledException)
+            catch (OperationCanceledException)
             {
-                _logger.LogInformation(
-                    "Video processing service is stopping.");
+                break;
             }
         }
+
+        _logger.LogInformation(
+            "========== VIDEO PROCESSING WORKER STOPPED ==========");
     }
 }

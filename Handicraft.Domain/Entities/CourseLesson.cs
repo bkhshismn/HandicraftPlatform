@@ -14,11 +14,9 @@ public class CourseLesson : BaseEntity
 
     public int OrderIndex { get; set; }
 
-
-    // Video link
-
-    public CourseEpisode? Episode { get; set; }
-
+    // A lesson can have multiple episodes/videos.
+    public ICollection<CourseEpisode> Episodes { get; set; }
+        = new List<CourseEpisode>();
 
     public CourseSection Section { get; set; } = null!;
 }

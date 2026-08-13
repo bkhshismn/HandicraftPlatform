@@ -9,12 +9,10 @@ public class CourseLessonRepository : ICourseLessonRepository
 {
     private readonly AppDbContext _context;
 
-
     public CourseLessonRepository(AppDbContext context)
     {
         _context = context;
     }
-
 
     public async Task<CourseLesson> AddAsync(
         CourseLesson lesson)
@@ -25,15 +23,13 @@ public class CourseLessonRepository : ICourseLessonRepository
         return lesson;
     }
 
-
     public async Task<CourseLesson?> GetByIdAsync(
         Guid id)
     {
         return await _context.CourseLessons
-            .Include(x => x.Episode)
+            .Include(x => x.Episodes)
             .FirstOrDefaultAsync(x => x.Id == id);
     }
-
 
     public async Task<IReadOnlyList<CourseLesson>> GetBySectionIdAsync(
         Guid sectionId)
@@ -43,7 +39,6 @@ public class CourseLessonRepository : ICourseLessonRepository
             .OrderBy(x => x.OrderIndex)
             .ToListAsync();
     }
-
 
     public async Task UpdateAsync(
         CourseLesson lesson)

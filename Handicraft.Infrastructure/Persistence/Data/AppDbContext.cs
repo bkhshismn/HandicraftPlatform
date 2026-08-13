@@ -87,10 +87,10 @@ public class AppDbContext : DbContext
 
 
             entity.HasOne(e => e.Lesson)
-                .WithOne(l => l.Episode)
-                .HasForeignKey<CourseEpisode>(e => e.LessonId)
-                .OnDelete(DeleteBehavior.Cascade);
-        });
+              .WithMany(l => l.Episodes)
+              .HasForeignKey(e => e.LessonId)
+              .OnDelete(DeleteBehavior.Cascade);
+                });
 
         // CourseEnrollment
         modelBuilder.Entity<CourseEnrollment>(entity =>

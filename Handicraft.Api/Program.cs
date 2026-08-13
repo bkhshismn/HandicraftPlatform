@@ -10,12 +10,29 @@ using System.Text;
 using Microsoft.OpenApi.Models;
 using Handicraft.Infrastructure.BackgroundServices;
 using Handicraft.Infrastructure.Services;
+using Microsoft.AspNetCore.Http.Features;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ==========================
+// Upload size limits
+// ==========================
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = 2_000_000_000;
+    options.ValueLengthLimit = int.MaxValue;
+    options.MultipartHeadersLengthLimit = int.MaxValue;
+});
+
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = 2_000_000_000;
+});
+
 // Read JWT settings
 var jwtSection = builder.Configuration.GetSection("Jwt");
-var jwtKey = jwtSection.GetValue<string>("Key") ?? throw new InvalidOperationException("Jwt:Key is not configured");
+var jwtKey = jwtSection.GetValue<string>("Key")
+    ?? throw new InvalidOperationException("Jwt:Key is not configured");
 var jwtIssuer = jwtSection.GetValue<string>("Issuer") ?? "Handicraft";
 var jwtAudience = jwtSection.GetValue<string>("Audience") ?? "HandicraftUsers";
 var jwtExpiresMinutes = jwtSection.GetValue<int>("ExpiresMinutes");
@@ -34,9 +51,8 @@ builder.Services.AddScoped<IUserDeviceRepository, UserDeviceRepository>();
 builder.Services.AddScoped<IPortfolioItemRepository, PortfolioItemRepository>();
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<ICourseLessonRepository, CourseLessonRepository>();
-
-//Image
 builder.Services.AddScoped<IPortfolioImageRepository, PortfolioImageRepository>();
+builder.Services.AddScoped<ICourseSectionRepository, CourseSectionRepository>();
 
 // AutoMapper
 builder.Services.AddAutoMapper(typeof(Handicraft.Application.Services.MappingProfile).Assembly);
@@ -50,21 +66,41 @@ builder.Services.AddScoped<IPortfolioImageService, PortfolioImageService>();
 builder.Services.AddScoped<IUserDeviceService, UserDeviceService>();
 builder.Services.AddScoped<ICourseEnrollmentService, CourseEnrollmentService>();
 builder.Services.AddScoped<ICourseEpisodeService, CourseEpisodeService>();
-builder.Services.AddHostedService<VideoProcessingBackgroundService>();
-builder.Services.AddScoped<ICourseSectionRepository, CourseSectionRepository>();
 builder.Services.AddScoped<ICourseSectionService, CourseSectionService>();
 builder.Services.AddScoped<ICourseLessonService, CourseLessonService>();
 
 // Video processing services
 builder.Services.AddScoped<IVideoStorageService, LocalVideoStorageService>();
 builder.Services.AddScoped<IVideoProcessor, FfmpegVideoProcessor>();
-
-
-
+builder.Services.AddHostedService<VideoProcessingBackgroundService>();
 
 // Add Controllers
 builder.Services.AddControllers();
+builder.Services.Configure<Microsoft.AspNetCore.Mvc.ApiBehaviorOptions>(options =>
+{
+    options.InvalidModelStateResponseFactory = context =>
+    {
+        Console.WriteLine("========== AUTO MODELSTATE 400 ==========");
 
+        foreach (var item in context.ModelState)
+        {
+            foreach (var error in item.Value.Errors)
+            {
+                Console.WriteLine(
+                    $"[AUTO 400] {item.Key}: {error.ErrorMessage}");
+
+                if (error.Exception != null)
+                {
+                    Console.WriteLine(
+                        $"[AUTO 400 EXCEPTION] {error.Exception.Message}");
+                }
+            }
+        }
+
+        return new Microsoft.AspNetCore.Mvc.BadRequestObjectResult(
+            context.ModelState);
+    };
+});
 // Authentication - JWT Bearer
 builder.Services.AddAuthentication(options =>
 {
@@ -81,7 +117,30 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuerSigningKey = true,
         ValidIssuer = jwtIssuer,
         ValidAudience = jwtAudience,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+        RoleClaimType = System.Security.Claims.ClaimTypes.Role,
+        NameClaimType = System.Security.Claims.ClaimTypes.Name,
+        ClockSkew = TimeSpan.FromMinutes(2)
+    };
+
+    options.Events = new JwtBearerEvents
+    {
+        OnAuthenticationFailed = context =>
+        {
+            Console.WriteLine($"[JWT FAIL] {context.Exception.Message}");
+            return Task.CompletedTask;
+        },
+        OnChallenge = context =>
+        {
+            Console.WriteLine(
+                $"[JWT CHALLENGE] Error={context.Error}, Desc={context.ErrorDescription}");
+            return Task.CompletedTask;
+        },
+        OnTokenValidated = context =>
+        {
+            Console.WriteLine("[JWT OK] Token validated successfully");
+            return Task.CompletedTask;
+        }
     };
 });
 
@@ -90,10 +149,11 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new() { Title = "Handicraft API", Version = "v1" });
-    // JWT Bearer token support in Swagger
+
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
-        Description = "Enter 'Bearer' [space] and then your valid token in the text input below.\r\n\r\nExample: 'Bearer eyJhb...'",
+        Description =
+            "Enter 'Bearer' [space] and then your valid token in the text input below.\r\n\r\nExample: 'Bearer eyJhb...'",
         Name = "Authorization",
         In = ParameterLocation.Header,
         Type = SecuritySchemeType.Http,
@@ -106,9 +166,13 @@ builder.Services.AddSwaggerGen(c =>
         {
             new OpenApiSecurityScheme
             {
-                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
             },
-            new string[] { }
+            Array.Empty<string>()
         }
     });
 });
@@ -136,7 +200,6 @@ if (app.Environment.IsDevelopment())
     }
 }
 
-// Enable Swagger and Swagger UI in all environments
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
@@ -146,7 +209,8 @@ app.UseSwaggerUI(c =>
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.UseHttpsRedirection();
+// فعلاً در Development اگر مشکل SSL داشتی می‌توانی خاموش نگه داری
+// app.UseHttpsRedirection();
 
 app.MapControllers();
 

@@ -170,8 +170,7 @@ namespace Handicraft.Infrastructure.Migrations
 
                     b.HasIndex("CourseId");
 
-                    b.HasIndex("LessonId")
-                        .IsUnique();
+                    b.HasIndex("LessonId");
 
                     b.ToTable("CourseEpisodes", (string)null);
                 });
@@ -540,8 +539,8 @@ namespace Handicraft.Infrastructure.Migrations
                         .HasForeignKey("CourseId");
 
                     b.HasOne("Handicraft.Domain.Entities.CourseLesson", "Lesson")
-                        .WithOne("Episode")
-                        .HasForeignKey("Handicraft.Domain.Entities.CourseEpisode", "LessonId")
+                        .WithMany("Episodes")
+                        .HasForeignKey("LessonId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -644,7 +643,7 @@ namespace Handicraft.Infrastructure.Migrations
 
             modelBuilder.Entity("Handicraft.Domain.Entities.CourseLesson", b =>
                 {
-                    b.Navigation("Episode");
+                    b.Navigation("Episodes");
                 });
 
             modelBuilder.Entity("Handicraft.Domain.Entities.CourseSection", b =>
