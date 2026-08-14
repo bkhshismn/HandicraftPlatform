@@ -17,6 +17,7 @@ var builder = WebApplication.CreateBuilder(args);
 // ==========================
 // Upload size limits
 // ==========================
+
 builder.Services.Configure<FormOptions>(options =>
 {
     options.MultipartBodyLengthLimit = 2_000_000_000;
@@ -29,189 +30,434 @@ builder.WebHost.ConfigureKestrel(options =>
     options.Limits.MaxRequestBodySize = 2_000_000_000;
 });
 
-// Read JWT settings
-var jwtSection = builder.Configuration.GetSection("Jwt");
-var jwtKey = jwtSection.GetValue<string>("Key")
-    ?? throw new InvalidOperationException("Jwt:Key is not configured");
-var jwtIssuer = jwtSection.GetValue<string>("Issuer") ?? "Handicraft";
-var jwtAudience = jwtSection.GetValue<string>("Audience") ?? "HandicraftUsers";
-var jwtExpiresMinutes = jwtSection.GetValue<int>("ExpiresMinutes");
 
-// Add DbContext with PostgreSQL
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+// ==========================
+// JWT Settings
+// ==========================
 
-// Repository registrations
+var jwtSection =
+    builder.Configuration.GetSection("Jwt");
+
+var jwtKey =
+    jwtSection.GetValue<string>("Key")
+    ?? throw new InvalidOperationException(
+        "Jwt:Key is not configured");
+
+var jwtIssuer =
+    jwtSection.GetValue<string>("Issuer")
+    ?? "Handicraft";
+
+var jwtAudience =
+    jwtSection.GetValue<string>("Audience")
+    ?? "HandicraftUsers";
+
+var jwtExpiresMinutes =
+    jwtSection.GetValue<int>("ExpiresMinutes");
+
+
+// ==========================
+// Database
+// ==========================
+
+builder.Services.AddDbContext<AppDbContext>(
+    options =>
+        options.UseNpgsql(
+            builder.Configuration
+                .GetConnectionString("DefaultConnection")));
+
+
+// ==========================
+// Repositories
+// ==========================
+
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+
 builder.Services.AddScoped<ICourseRepository, CourseRepository>();
 builder.Services.AddScoped<ICourseEpisodeRepository, CourseEpisodeRepository>();
 builder.Services.AddScoped<ICourseEnrollmentRepository, CourseEnrollmentRepository>();
-builder.Services.AddScoped<IUserDeviceRepository, UserDeviceRepository>();
-builder.Services.AddScoped<IPortfolioItemRepository, PortfolioItemRepository>();
-builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<ICourseLessonRepository, CourseLessonRepository>();
-builder.Services.AddScoped<IPortfolioImageRepository, PortfolioImageRepository>();
 builder.Services.AddScoped<ICourseSectionRepository, CourseSectionRepository>();
 
-// AutoMapper
-builder.Services.AddAutoMapper(typeof(Handicraft.Application.Services.MappingProfile).Assembly);
+builder.Services.AddScoped<IUserDeviceRepository, UserDeviceRepository>();
 
-// Application services
+builder.Services.AddScoped<IPortfolioItemRepository, PortfolioItemRepository>();
+builder.Services.AddScoped<IPortfolioImageRepository, PortfolioImageRepository>();
+
+builder.Services.AddScoped<IOrderRepository, OrderRepository>();
+
+
+// ==========================
+// AutoMapper
+// ==========================
+
+builder.Services.AddAutoMapper(
+    typeof(
+        Handicraft.Application.Services.MappingProfile
+    ).Assembly);
+
+
+// ==========================
+// Application Services
+// ==========================
+
 builder.Services.AddScoped<ICourseService, CourseService>();
+
 builder.Services.AddScoped<IUserService, UserService>();
+
 builder.Services.AddScoped<IOrderService, OrderService>();
+
 builder.Services.AddScoped<IPortfolioService, PortfolioService>();
+
 builder.Services.AddScoped<IPortfolioImageService, PortfolioImageService>();
+
 builder.Services.AddScoped<IUserDeviceService, UserDeviceService>();
+
 builder.Services.AddScoped<ICourseEnrollmentService, CourseEnrollmentService>();
+
 builder.Services.AddScoped<ICourseEpisodeService, CourseEpisodeService>();
+
 builder.Services.AddScoped<ICourseSectionService, CourseSectionService>();
+
 builder.Services.AddScoped<ICourseLessonService, CourseLessonService>();
 
-// Video processing services
-builder.Services.AddScoped<IVideoStorageService, LocalVideoStorageService>();
-builder.Services.AddScoped<IVideoProcessor, FfmpegVideoProcessor>();
-builder.Services.AddHostedService<VideoProcessingBackgroundService>();
 
-// Add Controllers
+// ==========================
+// Video Processing
+// ==========================
+
+builder.Services.AddScoped<
+    IVideoStorageService,
+    LocalVideoStorageService>();
+
+builder.Services.AddScoped<
+    IVideoProcessor,
+    FfmpegVideoProcessor>();
+
+builder.Services.AddHostedService<
+    VideoProcessingBackgroundService>();
+
+
+// ==========================
+// Controllers
+// ==========================
+
 builder.Services.AddControllers();
-builder.Services.Configure<Microsoft.AspNetCore.Mvc.ApiBehaviorOptions>(options =>
-{
-    options.InvalidModelStateResponseFactory = context =>
-    {
-        Console.WriteLine("========== AUTO MODELSTATE 400 ==========");
 
-        foreach (var item in context.ModelState)
-        {
-            foreach (var error in item.Value.Errors)
+builder.Services.Configure<
+    Microsoft.AspNetCore.Mvc.ApiBehaviorOptions>(
+    options =>
+    {
+        options.InvalidModelStateResponseFactory =
+            context =>
             {
                 Console.WriteLine(
-                    $"[AUTO 400] {item.Key}: {error.ErrorMessage}");
+                    "========== AUTO MODELSTATE 400 ==========");
 
-                if (error.Exception != null)
+                foreach (var item in context.ModelState)
                 {
-                    Console.WriteLine(
-                        $"[AUTO 400 EXCEPTION] {error.Exception.Message}");
+                    foreach (var error in item.Value.Errors)
+                    {
+                        Console.WriteLine(
+                            $"[AUTO 400] {item.Key}: {error.ErrorMessage}");
+
+                        if (error.Exception != null)
+                        {
+                            Console.WriteLine(
+                                $"[AUTO 400 EXCEPTION] {error.Exception.Message}");
+                        }
+                    }
                 }
-            }
-        }
 
-        return new Microsoft.AspNetCore.Mvc.BadRequestObjectResult(
-            context.ModelState);
-    };
-});
-// Authentication - JWT Bearer
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-})
-.AddJwtBearer(options =>
-{
-    options.TokenValidationParameters = new TokenValidationParameters
-    {
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
-        ValidIssuer = jwtIssuer,
-        ValidAudience = jwtAudience,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
-        RoleClaimType = System.Security.Claims.ClaimTypes.Role,
-        NameClaimType = System.Security.Claims.ClaimTypes.Name,
-        ClockSkew = TimeSpan.FromMinutes(2)
-    };
-
-    options.Events = new JwtBearerEvents
-    {
-        OnAuthenticationFailed = context =>
-        {
-            Console.WriteLine($"[JWT FAIL] {context.Exception.Message}");
-            return Task.CompletedTask;
-        },
-        OnChallenge = context =>
-        {
-            Console.WriteLine(
-                $"[JWT CHALLENGE] Error={context.Error}, Desc={context.ErrorDescription}");
-            return Task.CompletedTask;
-        },
-        OnTokenValidated = context =>
-        {
-            Console.WriteLine("[JWT OK] Token validated successfully");
-            return Task.CompletedTask;
-        }
-    };
-});
-
-// Swagger
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(c =>
-{
-    c.SwaggerDoc("v1", new() { Title = "Handicraft API", Version = "v1" });
-
-    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-    {
-        Description =
-            "Enter 'Bearer' [space] and then your valid token in the text input below.\r\n\r\nExample: 'Bearer eyJhb...'",
-        Name = "Authorization",
-        In = ParameterLocation.Header,
-        Type = SecuritySchemeType.Http,
-        Scheme = "bearer",
-        BearerFormat = "JWT"
+                return new Microsoft.AspNetCore.Mvc.BadRequestObjectResult(
+                    context.ModelState);
+            };
     });
 
-    c.AddSecurityRequirement(new OpenApiSecurityRequirement
-    {
+
+// ==========================
+// CORS
+// ==========================
+//
+// Client:
+// http://localhost:5024
+//
+// API:
+// http://localhost:5182
+//
+// HLS.js داخل Browser برای دریافت
+// master.m3u8 و segmentها به CORS نیاز دارد.
+//
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(
+        "ClientCors",
+        policy =>
         {
+            policy
+                .WithOrigins(
+                    "http://localhost:5024")
+                .AllowAnyHeader()
+                .AllowAnyMethod();
+        });
+});
+
+
+// ==========================
+// Authentication - JWT Bearer
+// ==========================
+
+builder.Services.AddAuthentication(
+    options =>
+    {
+        options.DefaultAuthenticateScheme =
+            JwtBearerDefaults.AuthenticationScheme;
+
+        options.DefaultChallengeScheme =
+            JwtBearerDefaults.AuthenticationScheme;
+    })
+    .AddJwtBearer(
+        options =>
+        {
+            options.TokenValidationParameters =
+                new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+
+                    ValidateAudience = true,
+
+                    ValidateLifetime = true,
+
+                    ValidateIssuerSigningKey = true,
+
+                    ValidIssuer =
+                        jwtIssuer,
+
+                    ValidAudience =
+                        jwtAudience,
+
+                    IssuerSigningKey =
+                        new SymmetricSecurityKey(
+                            Encoding.UTF8.GetBytes(
+                                jwtKey)),
+
+                    RoleClaimType =
+                        System.Security.Claims.ClaimTypes.Role,
+
+                    NameClaimType =
+                        System.Security.Claims.ClaimTypes.Name,
+
+                    ClockSkew =
+                        TimeSpan.FromMinutes(2)
+                };
+
+
+            options.Events =
+                new JwtBearerEvents
+                {
+                    OnAuthenticationFailed =
+                        context =>
+                        {
+                            Console.WriteLine(
+                                $"[JWT FAIL] {context.Exception.Message}");
+
+                            return Task.CompletedTask;
+                        },
+
+
+                    OnChallenge =
+                        context =>
+                        {
+                            Console.WriteLine(
+                                $"[JWT CHALLENGE] " +
+                                $"Error={context.Error}, " +
+                                $"Desc={context.ErrorDescription}");
+
+                            return Task.CompletedTask;
+                        },
+
+
+                    OnTokenValidated =
+                        context =>
+                        {
+                            Console.WriteLine(
+                                "[JWT OK] Token validated successfully");
+
+                            return Task.CompletedTask;
+                        }
+                };
+        });
+
+
+// ==========================
+// Swagger
+// ==========================
+
+builder.Services.AddEndpointsApiExplorer();
+
+builder.Services.AddSwaggerGen(
+    c =>
+    {
+        c.SwaggerDoc(
+            "v1",
+            new OpenApiInfo
+            {
+                Title = "Handicraft API",
+                Version = "v1"
+            });
+
+
+        c.AddSecurityDefinition(
+            "Bearer",
             new OpenApiSecurityScheme
             {
-                Reference = new OpenApiReference
+                Description =
+                    "Enter 'Bearer' [space] and then your valid token " +
+                    "in the text input below.\r\n\r\n" +
+                    "Example: 'Bearer eyJhb...'",
+
+                Name = "Authorization",
+
+                In = ParameterLocation.Header,
+
+                Type = SecuritySchemeType.Http,
+
+                Scheme = "bearer",
+
+                BearerFormat = "JWT"
+            });
+
+
+        c.AddSecurityRequirement(
+            new OpenApiSecurityRequirement
+            {
                 {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
+                    new OpenApiSecurityScheme
+                    {
+                        Reference =
+                            new OpenApiReference
+                            {
+                                Type =
+                                    ReferenceType.SecurityScheme,
+
+                                Id = "Bearer"
+                            }
+                    },
+
+                    Array.Empty<string>()
                 }
-            },
-            Array.Empty<string>()
-        }
+            });
     });
-});
+
+
+// ==========================
+// Build
+// ==========================
 
 var app = builder.Build();
 
-// Apply migrations and seed data only in Development
+
+// ==========================
+// Database Migration / Seed
+// ==========================
+
 if (app.Environment.IsDevelopment())
 {
-    using (var scope = app.Services.CreateScope())
+    using var scope =
+        app.Services.CreateScope();
+
+    var services =
+        scope.ServiceProvider;
+
+    try
     {
-        var services = scope.ServiceProvider;
-        try
-        {
-            var db = services.GetRequiredService<AppDbContext>();
-            db.Database.Migrate();
-            await DataSeeder.SeedAsync(db);
-        }
-        catch (Exception ex)
-        {
-            var logger = services.GetRequiredService<ILogger<Program>>();
-            logger.LogError(ex, "An error occurred while migrating or seeding the database.");
-            throw;
-        }
+        var db =
+            services.GetRequiredService<AppDbContext>();
+
+        db.Database.Migrate();
+
+        await DataSeeder.SeedAsync(db);
+    }
+    catch (Exception ex)
+    {
+        var logger =
+            services.GetRequiredService<
+                ILogger<Program>>();
+
+        logger.LogError(
+            ex,
+            "An error occurred while migrating or seeding the database.");
+
+        throw;
     }
 }
 
+
+// ==========================
+// Swagger
+// ==========================
+
 app.UseSwagger();
-app.UseSwaggerUI(c =>
-{
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Handicraft API V1");
-});
 
-app.UseAuthentication();
-app.UseAuthorization();
+app.UseSwaggerUI(
+    c =>
+    {
+        c.SwaggerEndpoint(
+            "/swagger/v1/swagger.json",
+            "Handicraft API V1");
+    });
 
-// فعلاً در Development اگر مشکل SSL داشتی می‌توانی خاموش نگه داری
+
+// ==========================
+// HTTPS
+// ==========================
+//
+// در Development فعلاً خاموش نگه می‌داریم.
+// چون Client روی 5024 و API روی 5182 هستند.
+//
+
 // app.UseHttpsRedirection();
 
+
+// ==========================
+// CORS
+// ==========================
+//
+// باید قبل از Authentication و Authorization
+// اجرا شود تا پاسخ HLS شامل:
+//
+// Access-Control-Allow-Origin
+//
+// باشد.
+//
+
+app.UseCors("ClientCors");
+
+
+// ==========================
+// Authentication
+// ==========================
+
+app.UseAuthentication();
+
+
+// ==========================
+// Authorization
+// ==========================
+
+app.UseAuthorization();
+
+
+// ==========================
+// Controllers
+// ==========================
+
 app.MapControllers();
+
+
+// ==========================
+// Run
+// ==========================
 
 app.Run();

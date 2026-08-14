@@ -89,7 +89,8 @@ public class CourseService : ICourseService
                                     // برای DTO فعلی انتخاب می‌کنیم.
                                     var episode =
                                         lesson.Episodes?
-                                            .OrderBy(x => x.Order)
+                                            .Where(x => x.Status == VideoProcessingStatus.Ready)
+                                            .OrderByDescending(x => x.CreatedAt)
                                             .FirstOrDefault();
 
                                     return new CourseLessonDto
