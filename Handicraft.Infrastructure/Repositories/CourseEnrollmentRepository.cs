@@ -38,9 +38,14 @@ public class CourseEnrollmentRepository : GenericRepository<CourseEnrollment>, I
     }
 
     // Check if a user is enrolled in a course
-    public async Task<bool> IsUserEnrolledAsync(Guid userId, Guid courseId)
+    public async Task<bool> IsUserEnrolledAsync(
+    Guid userId,
+    Guid courseId)
     {
         return await _context.CourseEnrollments
-            .AnyAsync(e => e.UserId == userId && e.CourseId == courseId);
+            .AnyAsync(e =>
+                e.UserId == userId &&
+                e.CourseId == courseId &&
+                e.IsActive);
     }
 }
