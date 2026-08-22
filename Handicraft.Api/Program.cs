@@ -85,7 +85,7 @@ builder.Services.AddScoped<IPortfolioItemRepository, PortfolioItemRepository>();
 builder.Services.AddScoped<IPortfolioImageRepository, PortfolioImageRepository>();
 
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
-
+builder.Services.AddScoped<ICourseLessonProgressRepository, CourseLessonProgressRepository>();
 
 // ==========================
 // AutoMapper
@@ -120,6 +120,7 @@ builder.Services.AddScoped<ICourseEpisodeService, CourseEpisodeService>();
 builder.Services.AddScoped<ICourseSectionService, CourseSectionService>();
 
 builder.Services.AddScoped<ICourseLessonService, CourseLessonService>();
+builder.Services.AddScoped< ICourseLessonProgressService, CourseLessonProgressService>();
 
 
 // ==========================

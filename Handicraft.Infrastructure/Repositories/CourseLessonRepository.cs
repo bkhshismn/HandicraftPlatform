@@ -27,6 +27,7 @@ public class CourseLessonRepository : ICourseLessonRepository
         Guid id)
     {
         return await _context.CourseLessons
+            .Include(x => x.Section)
             .Include(x => x.Episodes)
             .FirstOrDefaultAsync(x => x.Id == id);
     }

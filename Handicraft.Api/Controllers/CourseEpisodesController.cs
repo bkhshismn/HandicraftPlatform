@@ -85,35 +85,80 @@ public class CourseEpisodesController : ControllerBase
     // ============================================================
     // Stream HLS
     //
+    // Free episode:
+    //      Anonymous       => allowed
+    //      Authenticated   => allowed
+    //
+    // Paid episode:
+    //      Anonymous       => denied
+    //      Authenticated + access => allowed
+    //
     // IMPORTANT:
-    // This endpoint intentionally does NOT have [Authorize].
+    // این endpoint AllowAnonymous است تا Free Preview بتواند
+    // بدون لاگین هم پخش شود.
     //
-    // Access is controlled by UserHasAccessAsync:
-    //
-    // Anonymous + Free Episode       => allowed
-    // Authenticated + Free Episode   => allowed
-    // Admin                           => allowed
-    // Authenticated + Enrolled        => allowed
-    // Authenticated + Not Enrolled    => denied
-    // Anonymous + Paid Episode        => denied
+    // برای درخواست‌های HLS با Bearer Token، ابتدا Header را
+    // لاگ می‌کنیم تا مطمئن شویم HLS.js واقعاً Token را ارسال می‌کند.
     // ============================================================
 
     [HttpGet("{episodeId:guid}/stream/{**path}")]
     [AllowAnonymous]
     public async Task<IActionResult> StreamHls(
-     Guid lessonId,
-     Guid episodeId,
-     string path)
+        Guid lessonId,
+        Guid episodeId,
+        string path)
     {
         Console.WriteLine();
         Console.WriteLine("========== HLS REQUEST ==========");
-        Console.WriteLine($"LessonId  : {lessonId}");
-        Console.WriteLine($"EpisodeId : {episodeId}");
-        Console.WriteLine($"Path      : {path}");
-        Console.WriteLine($"User      : {User.Identity?.Name}");
-        Console.WriteLine($"Auth      : {User.Identity?.IsAuthenticated}");
-        Console.WriteLine($"Admin     : {User.IsInRole("Admin")}");
-        Console.WriteLine($"Instructor: {User.IsInRole("Instructor")}");
+
+        Console.WriteLine(
+            $"LessonId  : {lessonId}");
+
+        Console.WriteLine(
+            $"EpisodeId : {episodeId}");
+
+        Console.WriteLine(
+            $"Path      : {path}");
+
+        // --------------------------------------------------------
+        // Authorization Header
+        // --------------------------------------------------------
+
+        var authHeader =
+            Request.Headers.Authorization.ToString();
+
+        Console.WriteLine(
+            $"[HLS AUTH HEADER] " +
+            $"{(string.IsNullOrWhiteSpace(authHeader)
+                ? "EMPTY"
+                : "PRESENT")}");
+
+        if (!string.IsNullOrWhiteSpace(authHeader))
+        {
+            Console.WriteLine(
+                $"[HLS AUTH HEADER FORMAT] " +
+                $"{(authHeader.StartsWith(
+                    "Bearer ",
+                    StringComparison.OrdinalIgnoreCase)
+                    ? "Bearer"
+                    : "INVALID")}");
+        }
+
+        // --------------------------------------------------------
+        // Current HttpContext User
+        // --------------------------------------------------------
+
+        Console.WriteLine(
+            $"User      : {User.Identity?.Name}");
+
+        Console.WriteLine(
+            $"Auth      : {User.Identity?.IsAuthenticated}");
+
+        Console.WriteLine(
+            $"Admin     : {User.IsInRole("Admin")}");
+
+        Console.WriteLine(
+            $"Instructor: {User.IsInRole("Instructor")}");
 
         // --------------------------------------------------------
         // Validate path
@@ -121,6 +166,9 @@ public class CourseEpisodesController : ControllerBase
 
         if (string.IsNullOrWhiteSpace(path))
         {
+            Console.WriteLine(
+                "[HLS] Empty path.");
+
             return BadRequest(new
             {
                 message = "مسیر فایل ویدئو مشخص نشده است."
@@ -129,8 +177,6 @@ public class CourseEpisodesController : ControllerBase
 
         // --------------------------------------------------------
         // Access control
-        //
-        // This handles BOTH authenticated and anonymous users.
         // --------------------------------------------------------
 
         var hasAccess =
@@ -139,6 +185,9 @@ public class CourseEpisodesController : ControllerBase
                 lessonId,
                 episodeId);
 
+        Console.WriteLine(
+            $"[HLS ACCESS RESULT] {hasAccess}");
+
         if (!hasAccess)
         {
             Console.WriteLine(
@@ -146,8 +195,14 @@ public class CourseEpisodesController : ControllerBase
 
             if (User.Identity?.IsAuthenticated != true)
             {
+                Console.WriteLine(
+                    "[HLS] Anonymous user.");
+
                 return Unauthorized();
             }
+
+            Console.WriteLine(
+                "[HLS] Authenticated user without access.");
 
             return Forbid();
         }
@@ -173,6 +228,13 @@ public class CourseEpisodesController : ControllerBase
             return NotFound();
         }
 
+        Console.WriteLine(
+            $"[HLS] Resolved path: {fullPath}");
+
+        // --------------------------------------------------------
+        // Check file exists
+        // --------------------------------------------------------
+
         if (!System.IO.File.Exists(fullPath))
         {
             Console.WriteLine(
@@ -191,8 +253,11 @@ public class CourseEpisodesController : ControllerBase
         var contentType =
             GetHlsContentType(path);
 
+        Console.WriteLine(
+            $"[HLS] Content-Type: {contentType}");
+
         // --------------------------------------------------------
-        // PhysicalFile
+        // Physical file
         // --------------------------------------------------------
 
         return PhysicalFile(

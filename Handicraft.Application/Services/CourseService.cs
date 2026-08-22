@@ -88,20 +88,23 @@ public class CourseService : ICourseService
                                     // فعلاً اولین Episode را به عنوان ویدئوی اصلی
                                     // برای DTO فعلی انتخاب می‌کنیم.
                                     var episode =
-                                        lesson.Episodes?
-                                            .Where(x => x.Status == VideoProcessingStatus.Ready)
-                                            .OrderByDescending(x => x.CreatedAt)
-                                            .FirstOrDefault();
+                                     lesson.Episodes?
+                                         .Where(x => x.Status == VideoProcessingStatus.Ready)
+                                         .OrderByDescending(x => x.CreatedAt)
+                                         .FirstOrDefault();
 
                                     return new CourseLessonDto
                                     {
                                         Id = lesson.Id,
                                         Title = lesson.Title,
                                         Description = lesson.Description,
+
                                         DurationSeconds =
                                             lesson.DurationSeconds,
+
                                         IsFreePreview =
-                                            lesson.IsFreePreview,
+                                            episode?.IsFree ?? lesson.IsFreePreview,
+
                                         OrderIndex =
                                             lesson.OrderIndex,
 
