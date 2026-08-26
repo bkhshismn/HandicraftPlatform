@@ -15,6 +15,9 @@ public class CourseSectionService : ICourseSectionService
         _repository = repository;
     }
 
+    // ============================================================
+    // Create Section
+    // ============================================================
 
     public async Task<CourseSectionDto> CreateAsync(
         Guid courseId,
@@ -29,9 +32,8 @@ public class CourseSectionService : ICourseSectionService
             CreatedAt = DateTime.UtcNow
         };
 
-
-        var result = await _repository.AddAsync(section);
-
+        var result =
+            await _repository.AddAsync(section);
 
         return new CourseSectionDto
         {
@@ -40,5 +42,27 @@ public class CourseSectionService : ICourseSectionService
             Title = result.Title,
             OrderIndex = result.OrderIndex
         };
+    }
+
+    // ============================================================
+    // Get Sections By Course
+    // ============================================================
+
+    public async Task<IEnumerable<CourseSectionDto>>
+        GetByCourseIdAsync(Guid courseId)
+    {
+        var sections =
+            await _repository.GetByCourseIdAsync(courseId);
+
+        return sections
+            .OrderBy(s => s.OrderIndex)
+            .Select(s => new CourseSectionDto
+            {
+                Id = s.Id,
+                CourseId = s.CourseId,
+                Title = s.Title,
+                OrderIndex = s.OrderIndex
+            })
+            .ToList();
     }
 }

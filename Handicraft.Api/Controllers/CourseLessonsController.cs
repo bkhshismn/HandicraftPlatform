@@ -10,21 +10,40 @@ public class CourseLessonsController : ControllerBase
 {
     private readonly ICourseLessonService _service;
 
-
     public CourseLessonsController(
         ICourseLessonService service)
     {
         _service = service;
     }
 
+    // ============================================================
+    // Get Lessons By Section
+    // ============================================================
 
-    [HttpPost]
-    public async Task<IActionResult> Create(
-        Guid sectionId,
-        [FromBody] CourseLessonCreateDto dto)
+    [HttpGet]
+    public async Task<ActionResult<IEnumerable<CourseLessonDto>>>
+        GetBySection(Guid sectionId)
     {
         var result =
-            await _service.CreateAsync(sectionId, dto);
+            await _service.GetBySectionIdAsync(sectionId);
+
+        return Ok(result);
+    }
+
+    // ============================================================
+    // Create Lesson
+    // ============================================================
+
+    [HttpPost]
+    public async Task<ActionResult<CourseLessonDto>>
+        Create(
+            Guid sectionId,
+            [FromBody] CourseLessonCreateDto dto)
+    {
+        var result =
+            await _service.CreateAsync(
+                sectionId,
+                dto);
 
         return Ok(result);
     }

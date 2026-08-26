@@ -9,13 +9,15 @@ public class CourseLessonService : ICourseLessonService
 {
     private readonly ICourseLessonRepository _repository;
 
-
     public CourseLessonService(
         ICourseLessonRepository repository)
     {
         _repository = repository;
     }
 
+    // ============================================================
+    // Create Lesson
+    // ============================================================
 
     public async Task<CourseLessonDto> CreateAsync(
         Guid sectionId,
@@ -33,10 +35,8 @@ public class CourseLessonService : ICourseLessonService
             CreatedAt = DateTime.UtcNow
         };
 
-
         var result =
             await _repository.AddAsync(lesson);
-
 
         return new CourseLessonDto
         {
@@ -48,5 +48,30 @@ public class CourseLessonService : ICourseLessonService
             OrderIndex = result.OrderIndex,
             HasVideo = false
         };
+    }
+
+    // ============================================================
+    // Get Lessons By Section
+    // ============================================================
+
+    public async Task<IEnumerable<CourseLessonDto>>
+        GetBySectionIdAsync(Guid sectionId)
+    {
+        var lessons =
+            await _repository.GetBySectionIdAsync(sectionId);
+
+        return lessons
+            .OrderBy(l => l.OrderIndex)
+            .Select(l => new CourseLessonDto
+            {
+                Id = l.Id,
+                Title = l.Title,
+                Description = l.Description,
+                DurationSeconds = l.DurationSeconds,
+                IsFreePreview = l.IsFreePreview,
+                OrderIndex = l.OrderIndex,
+                HasVideo = l.Episodes.Any()
+            })
+            .ToList();
     }
 }

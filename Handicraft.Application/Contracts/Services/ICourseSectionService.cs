@@ -7,4 +7,7 @@ public interface ICourseSectionService
     Task<CourseSectionDto> CreateAsync(
         Guid courseId,
         CourseSectionCreateDto dto);
+
+    Task<IEnumerable<CourseSectionDto>> GetByCourseIdAsync(
+        Guid courseId);
 }
