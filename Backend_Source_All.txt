@@ -9593,7 +9593,7 @@ FILE: D:\Projects\MarziHandicrafts\Handicraft.Api\appsettings.json
 ==================================================
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Port=5741;Database=HandicraftDb;Username=postgres;Password=MarziHandicrafts2026!"
+    "DefaultConnection": "Host=localhost;Port=5741;Database=HandicraftDb;Username=postgres;Password=CHANGE_ME"
   },
   "Logging": {
     "LogLevel": {
@@ -9603,7 +9603,7 @@ FILE: D:\Projects\MarziHandicrafts\Handicraft.Api\appsettings.json
   },
   "AllowedHosts": "*",
   "Jwt": {
-    "Key": "ChangeThisSecretToAStrongValue-UseEnvironmentOrVault",
+    "Key": "SET_VIA_ENVIRONMENT_OR_SECRET_MANAGER",
     "Issuer": "Handicraft",
     "Audience": "HandicraftUsers",
     "ExpiresMinutes": 60

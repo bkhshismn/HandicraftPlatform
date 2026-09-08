@@ -20,14 +20,14 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.Configure<FormOptions>(options =>
 {
-    options.MultipartBodyLengthLimit = 2_000_000_000;
-    options.ValueLengthLimit = int.MaxValue;
-    options.MultipartHeadersLengthLimit = int.MaxValue;
+    options.MultipartBodyLengthLimit = 524_288_000;
+    options.ValueLengthLimit = 16_384;
+    options.MultipartHeadersLengthLimit = 32_768;
 });
 
 builder.WebHost.ConfigureKestrel(options =>
 {
-    options.Limits.MaxRequestBodySize = 2_000_000_000;
+    options.Limits.MaxRequestBodySize = 524_288_000;
 });
 
 
@@ -42,6 +42,13 @@ var jwtKey =
     jwtSection.GetValue<string>("Key")
     ?? throw new InvalidOperationException(
         "Jwt:Key is not configured");
+
+if (jwtKey.Length < 32 ||
+    jwtKey.StartsWith("ChangeThisSecret", StringComparison.Ordinal))
+{
+    throw new InvalidOperationException(
+        "Jwt:Key must be a securely managed value of at least 32 characters.");
+}
 
 var jwtIssuer =
     jwtSection.GetValue<string>("Issuer")
@@ -418,7 +425,10 @@ app.UseSwaggerUI(
 // چون Client روی 5024 و API روی 5182 هستند.
 //
 
-// app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 
 
 // ==========================

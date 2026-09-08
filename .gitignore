@@ -364,3 +364,7 @@ FodyWeavers.xsd
 
 # Local video storage
 VideoStorage/
+
+# Local secrets
+.env
+appsettings.Local.json

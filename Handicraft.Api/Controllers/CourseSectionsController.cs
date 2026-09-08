@@ -1,11 +1,13 @@
 ﻿using Handicraft.Application.Contracts.Services;
 using Handicraft.Application.Services.Dtos;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Handicraft.Api.Controllers;
 
 [ApiController]
 [Route("api/admin/courses/{courseId:guid}/sections")]
+[Authorize(Roles = "Admin,Instructor")]
 public class CourseSectionsController : ControllerBase
 {
     private readonly ICourseSectionService _service;

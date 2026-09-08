@@ -167,6 +167,11 @@ public class AuthController : ControllerBase
         if (dto == null) return BadRequest();
 
         var user = await _userRepository.GetByPhoneAsync(dto.Phone);
+        if (user is null)
+        {
+            return Unauthorized(new { message = "Invalid credentials" });
+        }
+
         if (!user.IsActive)
         {
             return Unauthorized(new
@@ -199,6 +204,7 @@ public class AuthController : ControllerBase
         var claims = new List<Claim>
         {
             new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim(JwtRegisteredClaimNames.UniqueName, user.Phone),
             new Claim(ClaimTypes.Role, user.Role ?? string.Empty)
         };

@@ -23,11 +23,11 @@ public class CourseEpisodesController : ControllerBase
 
     [HttpPost]
     [Authorize(Roles = "Admin,Instructor")]
-    [RequestSizeLimit(2_000_000_000)]
+    [RequestSizeLimit(524_288_000)]
     [RequestFormLimits(
-        MultipartBodyLengthLimit = 2_000_000_000,
-        ValueLengthLimit = int.MaxValue,
-        MultipartHeadersLengthLimit = int.MaxValue)]
+        MultipartBodyLengthLimit = 524_288_000,
+        ValueLengthLimit = 16_384,
+        MultipartHeadersLengthLimit = 32_768)]
     public async Task<IActionResult> UploadEpisode(
         Guid lessonId,
         [FromForm] CourseEpisodeUploadDto dto)
@@ -67,7 +67,7 @@ public class CourseEpisodesController : ControllerBase
     // ============================================================
 
     [HttpGet("{episodeId:guid}/status")]
-    [Authorize]
+    [Authorize(Roles = "Admin,Instructor")]
     public async Task<IActionResult> GetStatus(
         Guid lessonId,
         Guid episodeId)

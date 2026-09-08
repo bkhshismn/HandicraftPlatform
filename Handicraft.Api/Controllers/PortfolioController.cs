@@ -1,6 +1,7 @@
 using Handicraft.Application.Contracts.Persistence;
 using Handicraft.Application.Contracts.Services;
 using Handicraft.Application.Services.Dtos;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Handicraft.Api.Controllers;
@@ -31,6 +32,7 @@ public class PortfolioController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin,Instructor")]
     public async Task<ActionResult<PortfolioItemDto>> Create([FromBody] PortfolioCreateDto dto)
     {
         if (dto == null) return BadRequest();
@@ -43,6 +45,9 @@ public class PortfolioController : ControllerBase
         var item = await _service.GetByIdAsync(id);
 
         if (item is null)
+            return NotFound();
+
+        if (!item.IsVisible && !User.IsInRole("Admin") && !User.IsInRole("Instructor"))
             return NotFound();
 
         return Ok(item);

@@ -10,10 +10,10 @@ public class MappingProfile : Profile
     public MappingProfile()
     {
         // Course
-        CreateMap<Course, CourseDto>();
-        CreateMap<CourseSection, CourseSectionDto>();
-        CreateMap<CourseLesson, CourseLessonDto>();
-        CreateMap<CourseEpisode, CourseEpisodeDto>();
+        CreateMap<Course, CourseDto>().MaxDepth(64);
+        CreateMap<CourseSection, CourseSectionDto>().MaxDepth(64);
+        CreateMap<CourseLesson, CourseLessonDto>().MaxDepth(64);
+        CreateMap<CourseEpisode, CourseEpisodeDto>().MaxDepth(64);
         CreateMap<CourseCreateDto, Course>();
         CreateMap<CourseEpisodeCreateDto, CourseEpisode>();
 

@@ -1,5 +1,6 @@
 ﻿using Handicraft.Application.Contracts.Services;
 using Handicraft.Application.Services.Dtos;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Handicraft.Api.Controllers;
@@ -28,6 +29,7 @@ public class PortfolioImagesController : ControllerBase
     }
 
     [HttpPost("{portfolioId:guid}/images")]
+    [Authorize(Roles = "Admin,Instructor")]
     public async Task<ActionResult<PortfolioImageDto>>
         Add(
             Guid portfolioId,
@@ -42,6 +44,7 @@ public class PortfolioImagesController : ControllerBase
     }
 
     [HttpDelete("images/{imageId:guid}")]
+    [Authorize(Roles = "Admin,Instructor")]
     public async Task<IActionResult>
         Delete(Guid imageId)
     {
@@ -51,6 +54,7 @@ public class PortfolioImagesController : ControllerBase
     }
 
     [HttpPut("images/reorder")]
+    [Authorize(Roles = "Admin,Instructor")]
     public async Task<IActionResult>
         Reorder(
             [FromBody] PortfolioImageReorderDto dto)

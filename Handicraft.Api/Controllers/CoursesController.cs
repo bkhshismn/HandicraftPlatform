@@ -17,6 +17,7 @@ public class CoursesController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Roles = "Admin,Instructor")]
     public async Task<ActionResult<IEnumerable<CourseDto>>> GetAll()
     {
         var courses = await _courseService.GetAllAsync();
@@ -38,10 +39,14 @@ public class CoursesController : ControllerBase
         if (course == null)
             return NotFound();
 
+        if (!course.IsPublished && !User.IsInRole("Admin") && !User.IsInRole("Instructor"))
+            return NotFound();
+
         return Ok(course);
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin,Instructor")]
     public async Task<ActionResult<CourseDto>> Create(
         [FromBody] CourseCreateDto dto)
     {
