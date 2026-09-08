@@ -14,7 +14,9 @@ public class FfmpegVideoProcessor : IVideoProcessor
         var ffmpegArgs =
             $"-i \"{inputFilePath}\" " +
             "-filter_complex \"[0:v]split=3[v1][v2][v3];" +
-            "[v1]scale=w=640:h=360[v1out];[v2]scale=w=854:h=480[v2out];[v3]scale=w=1280:h=720[v3out]\" " +
+            "[v1]scale=w=640:h=360:force_original_aspect_ratio=decrease:force_divisible_by=2,setsar=1[v1out];" +
+            "[v2]scale=w=854:h=480:force_original_aspect_ratio=decrease:force_divisible_by=2,setsar=1[v2out];" +
+            "[v3]scale=w=1280:h=720:force_original_aspect_ratio=decrease:force_divisible_by=2,setsar=1[v3out]\" " +
             "-map [v1out] -c:v:0 libx264 -b:v:0 800k " +
             "-map [v2out] -c:v:1 libx264 -b:v:1 1400k " +
             "-map [v3out] -c:v:2 libx264 -b:v:2 2800k " +
