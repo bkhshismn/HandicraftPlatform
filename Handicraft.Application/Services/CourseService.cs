@@ -8,10 +8,14 @@ namespace Handicraft.Application.Services;
 public class CourseService : ICourseService
 {
     private readonly ICourseRepository _courseRepository;
+    private readonly IVideoStorageService? _videoStorage;
 
-    public CourseService(ICourseRepository courseRepository)
+    public CourseService(
+        ICourseRepository courseRepository,
+        IVideoStorageService? videoStorage = null)
     {
         _courseRepository = courseRepository;
+        _videoStorage = videoStorage;
     }
 
     public async Task<CourseDto> CreateAsync(
@@ -154,5 +158,32 @@ public class CourseService : ICourseService
         await _courseRepository.UpdateAsync(course);
 
         return MapToDto(course);
+    }
+
+    public async Task<bool> DeleteAsync(Guid id)
+    {
+        if (_videoStorage is null)
+            throw new InvalidOperationException(
+                "Video storage is required to delete a course.");
+
+        var course = await _courseRepository.GetByIdWithContentAsync(id);
+
+        if (course is null)
+            return false;
+
+        var episodes = course.Sections
+            .SelectMany(section => section.Lessons)
+            .SelectMany(lesson => lesson.Episodes)
+            .ToList();
+
+        foreach (var episode in episodes)
+        {
+            await _videoStorage.DeleteEpisodeFilesAsync(
+                episode.LessonId,
+                episode.Id);
+        }
+
+        await _courseRepository.DeleteWithContentAsync(course);
+        return true;
     }
 }

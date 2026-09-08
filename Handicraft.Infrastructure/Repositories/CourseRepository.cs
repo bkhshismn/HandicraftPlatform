@@ -53,6 +53,14 @@ public class CourseRepository : GenericRepository<Course>, ICourseRepository
             .Include(x => x.Sections)
                 .ThenInclude(x => x.Lessons)
                     .ThenInclude(x => x.Episodes)
+            .Include(x => x.Enrollments)
             .FirstOrDefaultAsync(x => x.Id == id);
+    }
+
+    public async Task DeleteWithContentAsync(Course course)
+    {
+        _context.CourseEnrollments.RemoveRange(course.Enrollments);
+        _context.Courses.Remove(course);
+        await _context.SaveChangesAsync();
     }
 }

@@ -9,4 +9,5 @@ public interface ICourseRepository : IGenericRepository<Course>
     Task<IReadOnlyList<Course>> GetPublishedCoursesAsync();
     Task<List<Course>> GetAllWithContentAsync();
     Task<Course?> GetByIdWithContentAsync(Guid id);
+    Task DeleteWithContentAsync(Course course);
 }

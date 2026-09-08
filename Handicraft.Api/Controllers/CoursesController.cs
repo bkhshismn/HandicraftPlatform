@@ -73,6 +73,18 @@ public class CoursesController : ControllerBase
 
         return Ok(course);
     }
+
+    [HttpDelete("{id:guid}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Delete(Guid id)
+    {
+        var deleted = await _courseService.DeleteAsync(id);
+
+        if (!deleted)
+            return NotFound();
+
+        return NoContent();
+    }
 }
 
 public sealed class SetCoursePublishedRequest
