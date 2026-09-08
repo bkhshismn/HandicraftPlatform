@@ -9,11 +9,30 @@ public class LocalVideoStorageService : IVideoStorageService
 
     public LocalVideoStorageService(IConfiguration config)
     {
-        _basePath = config["VideoStorage:BasePath"]
-            ?? throw new InvalidOperationException(
-                "VideoStorage:BasePath در appsettings.json تنظیم نشده است.");
+        var configuredPath = config["VideoStorage:BasePath"];
 
-        _basePath = Path.GetFullPath(_basePath);
+        if (string.IsNullOrWhiteSpace(configuredPath))
+        {
+            var fallbackPath = Path.Combine(
+                AppContext.BaseDirectory,
+                "..",
+                "..",
+                "..",
+                "..",
+                "VideoStorage");
+
+            configuredPath = Path.GetFullPath(fallbackPath);
+        }
+        else if (!Path.IsPathRooted(configuredPath))
+        {
+            configuredPath = Path.GetFullPath(
+                Path.Combine(
+                    Directory.GetCurrentDirectory(),
+                    configuredPath));
+        }
+
+        _basePath = configuredPath;
+        Directory.CreateDirectory(_basePath);
 
         Console.WriteLine(
             $"[VIDEO STORAGE] BasePath: {_basePath}");

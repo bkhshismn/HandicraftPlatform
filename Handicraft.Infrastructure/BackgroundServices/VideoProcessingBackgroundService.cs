@@ -50,10 +50,12 @@ public class VideoProcessingBackgroundService : BackgroundService
 
                 var pendingEpisodes =
                     await episodeRepo.GetAsync(
-                        e => e.Status == VideoProcessingStatus.Pending);
+                        e =>
+                            e.Status == VideoProcessingStatus.Pending ||
+                            e.Status == VideoProcessingStatus.Failed);
 
                 _logger.LogInformation(
-                    "[VIDEO WORKER] Pending count: {Count}",
+                    "[VIDEO WORKER] Pending/Retry count: {Count}",
                     pendingEpisodes.Count);
 
                 foreach (var episode in pendingEpisodes)
@@ -83,6 +85,13 @@ public class VideoProcessingBackgroundService : BackgroundService
                         {
                             throw new InvalidOperationException(
                                 "RawVideoFileName is empty.");
+                        }
+
+                        if (episode.Status == VideoProcessingStatus.Failed)
+                        {
+                            _logger.LogWarning(
+                                "[VIDEO WORKER] Retrying failed episode {EpisodeId}",
+                                episode.Id);
                         }
 
                         var rawPath =
@@ -195,6 +204,10 @@ public class VideoProcessingBackgroundService : BackgroundService
 
                         episode.Status =
                             VideoProcessingStatus.Ready;
+
+                        _logger.LogInformation(
+                            "[VIDEO WORKER] Episode marked Ready for {EpisodeId}",
+                            episode.Id);
 
                         await episodeRepo.UpdateAsync(episode);
 
