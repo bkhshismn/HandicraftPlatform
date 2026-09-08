@@ -28,4 +28,6 @@ public interface ICourseEpisodeService
 
     Task<IReadOnlyList<CourseEpisodeDto>> GetEpisodesByLessonIdAsync(
         Guid lessonId);
+    
+        Task<bool> DeleteAsync(Guid lessonId, Guid episodeId);
 }

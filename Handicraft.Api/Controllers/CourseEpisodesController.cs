@@ -81,6 +81,22 @@ public class CourseEpisodesController : ControllerBase
 
         return Ok(status);
     }
+    
+    [HttpDelete("{episodeId:guid}")]
+    [Authorize(Roles = "Admin,Instructor")]
+    public async Task<IActionResult> DeleteEpisode(
+        Guid lessonId,
+        Guid episodeId)
+    {
+        var deleted = await _episodeService.DeleteAsync(
+            lessonId,
+            episodeId);
+
+        if (!deleted)
+            return NotFound();
+
+        return NoContent();
+    }
 
     // ============================================================
     // Stream HLS

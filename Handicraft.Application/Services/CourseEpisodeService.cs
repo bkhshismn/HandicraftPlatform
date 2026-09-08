@@ -127,6 +127,21 @@ public class CourseEpisodeService : ICourseEpisodeService
         return MapToDto(episode);
     }
 
+    public async Task<bool> DeleteAsync(Guid lessonId, Guid episodeId)
+    {
+        var episode = await _episodeRepository.GetByIdAsync(episodeId);
+
+        if (episode is null || episode.LessonId != lessonId)
+            return false;
+
+        await _videoStorage.DeleteEpisodeFilesAsync(
+            episode.LessonId,
+            episode.Id);
+
+        await _episodeRepository.DeleteAsync(episode);
+        return true;
+    }
+
 
     // ============================================================
     // Video Access Control
