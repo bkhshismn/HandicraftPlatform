@@ -139,4 +139,20 @@ public class CourseService : ICourseService
             Sections = sections
         };
     }
+    public async Task<CourseDto?> SetPublishedAsync(
+     Guid id,
+     bool isPublished)
+    {
+        var course =
+            await _courseRepository.GetByIdWithContentAsync(id);
+
+        if (course is null)
+            return null;
+
+        course.IsPublished = isPublished;
+
+        await _courseRepository.UpdateAsync(course);
+
+        return MapToDto(course);
+    }
 }
