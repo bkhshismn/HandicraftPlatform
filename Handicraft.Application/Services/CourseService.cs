@@ -42,9 +42,9 @@ public class CourseService : ICourseService
     public async Task<IEnumerable<CourseDto>> GetAllAsync()
     {
         var courses =
-            await _courseRepository.GetAllWithContentAsync();
+            await _courseRepository.GetAllWithEpisodesAsync();
 
-        return courses
+        return (courses ?? Array.Empty<Course>())
             .Select(MapToDto)
             .ToList();
     }

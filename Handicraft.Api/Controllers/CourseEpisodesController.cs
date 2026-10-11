@@ -276,6 +276,15 @@ public class CourseEpisodesController : ControllerBase
         // Physical file
         // --------------------------------------------------------
 
+        Response.Headers["Cache-Control"] =
+            "no-store, no-cache, must-revalidate";
+
+        Response.Headers["Pragma"] =
+            "no-cache";
+
+        Response.Headers["Expires"] =
+            "0";
+
         return PhysicalFile(
             fullPath,
             contentType,

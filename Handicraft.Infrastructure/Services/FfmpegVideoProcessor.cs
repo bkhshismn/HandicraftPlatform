@@ -20,7 +20,9 @@ public class FfmpegVideoProcessor : IVideoProcessor
             "-map [v1out] -c:v:0 libx264 -b:v:0 800k " +
             "-map [v2out] -c:v:1 libx264 -b:v:1 1400k " +
             "-map [v3out] -c:v:2 libx264 -b:v:2 2800k " +
-            "-map a:0? -map a:0? -map a:0? -c:a aac -b:a 128k " +
+            "-pix_fmt:v:0 yuv420p -pix_fmt:v:1 yuv420p -pix_fmt:v:2 yuv420p " +
+            "-map a:0? -map a:0? -map a:0? " +
+            "-c:a libmp3lame -b:a 128k -ar:a 48000 -ac:a 2 " +
             "-var_stream_map \"v:0,a:0 v:1,a:1 v:2,a:2\" " +
             "-f hls -hls_time 6 -hls_playlist_type vod " +
             $"-master_pl_name master.m3u8 " +

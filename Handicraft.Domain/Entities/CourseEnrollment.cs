@@ -12,6 +12,7 @@ public class CourseEnrollment : BaseEntity
 
     public DateTime EnrolledAt { get; set; }
 
+    public DateTime? ExpiresAt { get; set; }
 
     public decimal ProgressPercent { get; set; }
 
