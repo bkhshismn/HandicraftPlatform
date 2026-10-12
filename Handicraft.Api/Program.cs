@@ -25,14 +25,14 @@ builder.Configuration.AddJsonFile(
 
 builder.Services.Configure<FormOptions>(options =>
 {
-    options.MultipartBodyLengthLimit = 524_288_000;
+    options.MultipartBodyLengthLimit = 3_221_225_472;
     options.ValueLengthLimit = 16_384;
     options.MultipartHeadersLengthLimit = 32_768;
 });
 
 builder.WebHost.ConfigureKestrel(options =>
 {
-    options.Limits.MaxRequestBodySize = 524_288_000;
+    options.Limits.MaxRequestBodySize = 3_221_225_472;
 });
 
 

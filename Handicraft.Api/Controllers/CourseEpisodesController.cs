@@ -23,9 +23,9 @@ public class CourseEpisodesController : ControllerBase
 
     [HttpPost]
     [Authorize(Roles = "Admin,Instructor")]
-    [RequestSizeLimit(524_288_000)]
+    [RequestSizeLimit(3_221_225_472)]
     [RequestFormLimits(
-        MultipartBodyLengthLimit = 524_288_000,
+        MultipartBodyLengthLimit = 3_221_225_472,
         ValueLengthLimit = 16_384,
         MultipartHeadersLengthLimit = 32_768)]
     public async Task<IActionResult> UploadEpisode(
