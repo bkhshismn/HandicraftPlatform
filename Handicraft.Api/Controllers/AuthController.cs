@@ -78,7 +78,7 @@ public class AuthController : ControllerBase
 
         await _userRepository.AddAsync(user);
         // if repository does not save changes, ensure caller saves; our GenericRepository uses context and SaveChanges may be required.
-        // Attempt to save via a minimal approach if repository exposes no SaveChanges: rely on unit of work not present — use context via cast if needed.
+        // Attempt to save via a minimal approach if repository exposes no SaveChanges: rely on unit of work not present ï¿½ use context via cast if needed.
 
         var token = GenerateToken(user);
         // create refresh token
@@ -92,13 +92,56 @@ public class AuthController : ControllerBase
     }
 
     [Authorize]
+    [HttpGet("profile")]
+    public async Task<ActionResult<ProfileDto>> GetProfile()
+    {
+        if (!TryGetCurrentUserId(out var userId))
+            return Unauthorized();
+
+        var user = await _userRepository.GetByIdAsync(userId);
+        if (user == null)
+            return NotFound();
+
+        return Ok(
+            new ProfileDto(
+                user.Id,
+                user.Name,
+                user.Phone,
+                user.Role,
+                user.IsActive,
+                user.CreatedAt));
+    }
+
+    [Authorize]
+    [HttpPut("profile")]
+    public async Task<IActionResult> UpdateProfile(
+        [FromBody] UpdateProfileDto dto)
+    {
+        if (!TryGetCurrentUserId(out var userId))
+            return Unauthorized();
+
+        var name = dto.Name.Trim();
+        if (string.IsNullOrWhiteSpace(name))
+            return BadRequest(new { message = "Name is required." });
+
+        var user = await _userRepository.GetByIdAsync(userId);
+        if (user == null)
+            return NotFound();
+
+        user.Name = name;
+        user.UpdatedAt = DateTime.UtcNow;
+        await _userRepository.UpdateAsync(user);
+
+        return NoContent();
+    }
+
+    [Authorize]
     [HttpPost("change-password")]
     public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
     {
         if (dto == null) return BadRequest();
 
-        var userIdClaim = User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value;
-        if (!Guid.TryParse(userIdClaim, out var userId)) return Unauthorized();
+        if (!TryGetCurrentUserId(out var userId)) return Unauthorized();
 
         var user = await _userRepository.GetByIdAsync(userId);
         if (user == null) return NotFound();
@@ -119,6 +162,15 @@ public class AuthController : ControllerBase
         }
 
         return NoContent();
+    }
+
+    private bool TryGetCurrentUserId(out Guid userId)
+    {
+        var userIdClaim =
+            User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+
+        return Guid.TryParse(userIdClaim, out userId);
     }
 
     [HttpPost("refresh")]

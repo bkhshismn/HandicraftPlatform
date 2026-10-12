@@ -48,14 +48,28 @@ public class VideoProcessingBackgroundService : BackgroundService
                 _logger.LogInformation(
                     "[VIDEO WORKER] Checking pending episodes...");
 
-                var pendingEpisodes =
+                var episodesToCheck =
                     await episodeRepo.GetAsync(
                         e =>
                             e.Status == VideoProcessingStatus.Pending ||
                             e.Status == VideoProcessingStatus.Failed);
 
+                var pendingEpisodes =
+                    episodesToCheck
+                        .Where(
+                            episode =>
+                                episode.Status == VideoProcessingStatus.Pending ||
+                                (episode.Status == VideoProcessingStatus.Failed &&
+                                 !string.IsNullOrWhiteSpace(episode.RawVideoFileName) &&
+                                 File.Exists(
+                                     storage.GetRawVideoPath(
+                                         episode.LessonId,
+                                         episode.Id,
+                                         episode.RawVideoFileName))))
+                        .ToList();
+
                 _logger.LogInformation(
-                    "[VIDEO WORKER] Pending/Retry count: {Count}",
+                    "[VIDEO WORKER] Eligible pending/retry count: {Count}",
                     pendingEpisodes.Count);
 
                 foreach (var episode in pendingEpisodes)
