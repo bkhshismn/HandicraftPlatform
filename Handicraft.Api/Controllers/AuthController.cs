@@ -253,12 +253,18 @@ public class AuthController : ControllerBase
         var audience = jwtSection.GetValue<string>("Audience");
         var expires = jwtSection.GetValue<int>("ExpiresMinutes");
 
+        var role = user.Role ?? string.Empty;
+
         var claims = new List<Claim>
         {
             new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim(JwtRegisteredClaimNames.UniqueName, user.Phone),
-            new Claim(ClaimTypes.Role, user.Role ?? string.Empty)
+            new Claim(ClaimTypes.Name, user.Name),
+            new Claim(ClaimTypes.Role, role),
+            new Claim("role", role),
+            new Claim("roles", role),
+            new Claim("http://schemas.microsoft.com/ws/2008/06/identity/claims/role", role)
         };
 
         var keyBytes = Encoding.UTF8.GetBytes(key);

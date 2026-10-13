@@ -34,6 +34,7 @@ public class CourseRepository : GenericRepository<Course>, ICourseRepository
                 .ThenInclude(x => x.Lessons)
                     .ThenInclude(x => x.Episodes)
             .AsNoTracking()
+            .AsSplitQuery()
             .ToListAsync();
     }
 
@@ -44,6 +45,7 @@ public class CourseRepository : GenericRepository<Course>, ICourseRepository
                 .ThenInclude(x => x.Lessons)
                     .ThenInclude(x => x.Episodes)
             .AsNoTracking()
+            .AsSplitQuery()
             .ToListAsync();
     }
 
@@ -54,6 +56,7 @@ public class CourseRepository : GenericRepository<Course>, ICourseRepository
                 .ThenInclude(x => x.Lessons)
                     .ThenInclude(x => x.Episodes)
             .Include(x => x.Enrollments)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(x => x.Id == id);
     }
 

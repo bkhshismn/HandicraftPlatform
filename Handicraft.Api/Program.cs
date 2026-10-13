@@ -14,6 +14,13 @@ using Microsoft.AspNetCore.Http.Features;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// The default Windows Event Log provider can throw when the process lacks
+// permission to write to the machine event log. Keep logging in process
+// outputs so a logging failure can never terminate an API request.
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.AddDebug();
+
 builder.Configuration.AddJsonFile(
     "appsettings.Local.json",
     optional: true,
@@ -234,6 +241,8 @@ builder.Services.AddAuthentication(
     .AddJwtBearer(
         options =>
         {
+            options.MapInboundClaims = false;
+
             options.TokenValidationParameters =
                 new TokenValidationParameters
                 {
@@ -256,11 +265,9 @@ builder.Services.AddAuthentication(
                             Encoding.UTF8.GetBytes(
                                 jwtKey)),
 
-                    RoleClaimType =
-                        System.Security.Claims.ClaimTypes.Role,
+                    RoleClaimType = "role",
 
-                    NameClaimType =
-                        System.Security.Claims.ClaimTypes.Name,
+                    NameClaimType = "unique_name",
 
                     ClockSkew =
                         TimeSpan.FromMinutes(2)
