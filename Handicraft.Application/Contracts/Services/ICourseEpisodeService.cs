@@ -30,4 +30,5 @@ public interface ICourseEpisodeService
         Guid lessonId);
     
         Task<bool> DeleteAsync(Guid lessonId, Guid episodeId);
+    Task<CourseEpisodeDto?> UpdateAsync(Guid lessonId, Guid episodeId, CourseEpisodeUpdateDto dto);
 }

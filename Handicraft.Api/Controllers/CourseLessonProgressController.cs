@@ -87,4 +87,42 @@ public class CourseLessonProgressController : ControllerBase
             });
         }
     }
+
+    [HttpGet("~/api/lessons/{lessonId:guid}/episodes/{episodeId:guid}/progress")]
+    public async Task<IActionResult> GetEpisodeProgress(Guid lessonId, Guid episodeId)
+    {
+        try
+        {
+            var progress = await _progressService.GetEpisodeAsync(User, lessonId, episodeId);
+            return progress is null ? NotFound(new { message = "ویدیو پیدا نشد." }) : Ok(progress);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+    }
+
+    [HttpPut("~/api/lessons/{lessonId:guid}/episodes/{episodeId:guid}/progress")]
+    public async Task<IActionResult> UpdateEpisodeProgress(
+        Guid lessonId,
+        Guid episodeId,
+        [FromBody] UpdateCourseLessonProgressDto dto)
+    {
+        try
+        {
+            return Ok(await _progressService.UpdateEpisodeAsync(User, lessonId, episodeId, dto));
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
 }

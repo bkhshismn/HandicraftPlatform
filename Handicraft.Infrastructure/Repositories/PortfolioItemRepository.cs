@@ -15,6 +15,14 @@ public class PortfolioItemRepository
     {
     }
 
+    public async Task<IReadOnlyList<PortfolioItem>> GetAllWithImagesAsync()
+    {
+        return await _context.PortfolioItems
+            .Include(x => x.Images)
+            .OrderByDescending(x => x.CreatedAt)
+            .ToListAsync();
+    }
+
     public async Task<IReadOnlyList<PortfolioItem>>
         GetPublishedItemsAsync()
     {

@@ -13,4 +13,15 @@ public interface ICourseLessonProgressService
         ClaimsPrincipal user,
         Guid lessonId,
         UpdateCourseLessonProgressDto dto);
+
+    Task<CourseLessonProgressDto?> GetEpisodeAsync(
+        ClaimsPrincipal user,
+        Guid lessonId,
+        Guid episodeId);
+
+    Task<CourseLessonProgressDto> UpdateEpisodeAsync(
+        ClaimsPrincipal user,
+        Guid lessonId,
+        Guid episodeId,
+        UpdateCourseLessonProgressDto dto);
 }

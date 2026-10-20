@@ -22,7 +22,20 @@ public class CourseLessonProgressRepository
         return await _context.CourseLessonProgresses
             .FirstOrDefaultAsync(x =>
                 x.UserId == userId &&
-                x.LessonId == lessonId);
+                x.LessonId == lessonId &&
+                x.EpisodeId == null);
+    }
+
+    public async Task<CourseLessonProgress?> GetByUserAndLessonAndEpisodeAsync(
+        Guid userId,
+        Guid lessonId,
+        Guid episodeId)
+    {
+        return await _context.CourseLessonProgresses
+            .FirstOrDefaultAsync(x =>
+                x.UserId == userId &&
+                x.LessonId == lessonId &&
+                x.EpisodeId == episodeId);
     }
 
     public async Task<bool> ExistsForUserAndLessonAsync(
@@ -32,6 +45,7 @@ public class CourseLessonProgressRepository
         return await _context.CourseLessonProgresses
             .AnyAsync(x =>
                 x.UserId == userId &&
-                x.LessonId == lessonId);
+                x.LessonId == lessonId &&
+                x.EpisodeId == null);
     }
 }

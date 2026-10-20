@@ -4,6 +4,7 @@ namespace Handicraft.Application.Contracts.Services;
 
 public interface IPortfolioService
 {
+    Task<IEnumerable<PortfolioItemDto>> GetAllAsync();
     Task<IEnumerable<PortfolioItemDto>> GetPublishedAsync();
     Task<IEnumerable<PortfolioItemDto>> GetByCategoryAsync(string category);
     Task<PortfolioItemDto> CreateAsync(PortfolioCreateDto dto);

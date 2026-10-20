@@ -9,6 +9,11 @@ public interface ICourseLessonProgressRepository
         Guid userId,
         Guid lessonId);
 
+    Task<CourseLessonProgress?> GetByUserAndLessonAndEpisodeAsync(
+        Guid userId,
+        Guid lessonId,
+        Guid episodeId);
+
     Task<bool> ExistsForUserAndLessonAsync(
         Guid userId,
         Guid lessonId);

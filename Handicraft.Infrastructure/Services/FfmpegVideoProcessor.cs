@@ -22,7 +22,9 @@ public class FfmpegVideoProcessor : IVideoProcessor
             "-map [v3out] -c:v:2 libx264 -b:v:2 2800k " +
             "-pix_fmt:v:0 yuv420p -pix_fmt:v:1 yuv420p -pix_fmt:v:2 yuv420p " +
             "-map a:0? -map a:0? -map a:0? " +
-            "-c:a libmp3lame -b:a 128k -ar:a 48000 -ac:a 2 " +
+            // AAC in MPEG-TS is supported by HLS.js across Android Chrome,
+            // Safari, and desktop browsers; MP3-in-TS is not consistently decoded.
+            "-c:a aac -b:a 128k -ar:a 48000 -ac:a 2 " +
             "-var_stream_map \"v:0,a:0 v:1,a:1 v:2,a:2\" " +
             "-f hls -hls_time 6 -hls_playlist_type vod " +
             $"-master_pl_name master.m3u8 " +

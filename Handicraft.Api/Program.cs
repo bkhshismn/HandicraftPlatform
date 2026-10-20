@@ -11,6 +11,7 @@ using Microsoft.OpenApi.Models;
 using Handicraft.Infrastructure.BackgroundServices;
 using Handicraft.Infrastructure.Services;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,6 +26,10 @@ builder.Configuration.AddJsonFile(
     "appsettings.Local.json",
     optional: true,
     reloadOnChange: true);
+
+// Keep environment variables at the highest precedence so container-provided
+// connection strings and secrets override machine-local development settings.
+builder.Configuration.AddEnvironmentVariables();
 
 // ==========================
 // Upload size limits
@@ -90,6 +95,7 @@ builder.Services.AddDbContext<AppDbContext>(
 // ==========================
 
 builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IUserCourseCategoryRepository, UserCourseCategoryRepository>();
 builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 
 builder.Services.AddScoped<ICourseRepository, CourseRepository>();
@@ -209,6 +215,17 @@ builder.Services.Configure<
 // master.m3u8 و segmentها به CORS نیاز دارد.
 //
 
+var corsOrigins = new[]
+    {
+        "http://localhost:5024",
+        "http://localhost:5201",
+        "http://localhost:8081",
+        "http://127.0.0.1:8081"
+    }
+    .Concat(builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [])
+    .Distinct(StringComparer.OrdinalIgnoreCase)
+    .ToArray();
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(
@@ -216,9 +233,7 @@ builder.Services.AddCors(options =>
         policy =>
         {
             policy
-                .WithOrigins(
-                    "http://localhost:5024",
-                    "http://localhost:5201")
+                .WithOrigins(corsOrigins)
                 .AllowAnyHeader()
                 .AllowAnyMethod();
         });
@@ -378,12 +393,19 @@ builder.Services.AddSwaggerGen(
 
 var app = builder.Build();
 
+var imageStorageRoot = Path.Combine(
+    app.Environment.WebRootPath ?? Path.Combine(app.Environment.ContentRootPath, "wwwroot"),
+    "uploads",
+    "images");
+Directory.CreateDirectory(imageStorageRoot);
+
 
 // ==========================
 // Database Migration / Seed
 // ==========================
 
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() ||
+    app.Configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup"))
 {
     using var scope =
         app.Services.CreateScope();
@@ -457,6 +479,12 @@ if (!app.Environment.IsDevelopment())
 //
 
 app.UseCors("ClientCors");
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(imageStorageRoot),
+    RequestPath = "/uploads/images"
+});
 
 
 // ==========================

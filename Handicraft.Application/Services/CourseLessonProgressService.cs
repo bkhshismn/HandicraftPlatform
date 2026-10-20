@@ -12,15 +12,105 @@ public class CourseLessonProgressService
     private readonly ICourseLessonProgressRepository _progressRepository;
     private readonly ICourseLessonRepository _lessonRepository;
     private readonly ICourseEnrollmentRepository _enrollmentRepository;
+    private readonly ICourseEpisodeRepository _episodeRepository;
+    private readonly ICourseRepository _courseRepository;
+    private readonly IUserCourseCategoryRepository _categoryRepository;
 
     public CourseLessonProgressService(
         ICourseLessonProgressRepository progressRepository,
         ICourseLessonRepository lessonRepository,
-        ICourseEnrollmentRepository enrollmentRepository)
+        ICourseEnrollmentRepository enrollmentRepository,
+        ICourseEpisodeRepository episodeRepository,
+        ICourseRepository courseRepository,
+        IUserCourseCategoryRepository categoryRepository)
     {
         _progressRepository = progressRepository;
         _lessonRepository = lessonRepository;
         _enrollmentRepository = enrollmentRepository;
+        _episodeRepository = episodeRepository;
+        _courseRepository = courseRepository;
+        _categoryRepository = categoryRepository;
+    }
+
+    public async Task<CourseLessonProgressDto?> GetEpisodeAsync(
+        ClaimsPrincipal user,
+        Guid lessonId,
+        Guid episodeId)
+    {
+        var episode = await _episodeRepository.GetByIdAsync(episodeId);
+        if (episode is null || episode.LessonId != lessonId)
+            return null;
+
+        if (!episode.IsFree && !await HasLessonAccessAsync(user, lessonId))
+            throw new UnauthorizedAccessException("شما به این درس دسترسی ندارید.");
+
+        var progress = await _progressRepository
+            .GetByUserAndLessonAndEpisodeAsync(GetUserId(user), lessonId, episodeId);
+
+        // Keep progress created before episode-specific tracking for single-video lessons.
+        if (progress is null)
+        {
+            var episodes = await _episodeRepository.GetEpisodesByLessonIdAsync(lessonId);
+            if (episodes.Count == 1)
+                progress = await _progressRepository.GetByUserAndLessonAsync(GetUserId(user), lessonId);
+        }
+
+        return progress is null
+            ? new CourseLessonProgressDto(lessonId, 0, false)
+            : MapToDto(progress);
+    }
+
+    public async Task<CourseLessonProgressDto> UpdateEpisodeAsync(
+        ClaimsPrincipal user,
+        Guid lessonId,
+        Guid episodeId,
+        UpdateCourseLessonProgressDto dto)
+    {
+        if (dto.WatchedSeconds < 0)
+            throw new ArgumentException("زمان مشاهده نمی‌تواند منفی باشد.");
+
+        var episode = await _episodeRepository.GetByIdAsync(episodeId);
+        if (episode is null || episode.LessonId != lessonId)
+            throw new KeyNotFoundException("ویدیو پیدا نشد.");
+
+        if (!episode.IsFree && !await HasLessonAccessAsync(user, lessonId))
+            throw new UnauthorizedAccessException("شما به این درس دسترسی ندارید.");
+
+        var userId = GetUserId(user);
+        var progress = await _progressRepository
+            .GetByUserAndLessonAndEpisodeAsync(userId, lessonId, episodeId);
+
+        if (progress is null)
+        {
+            // Adopt legacy lesson progress only while this is the lesson's sole video.
+            var episodes = await _episodeRepository.GetEpisodesByLessonIdAsync(lessonId);
+            if (episodes.Count == 1)
+                progress = await _progressRepository.GetByUserAndLessonAsync(userId, lessonId);
+        }
+
+        if (progress is null)
+        {
+            progress = new CourseLessonProgress
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                LessonId = lessonId,
+                EpisodeId = episodeId,
+                WatchedSeconds = dto.WatchedSeconds,
+                Completed = dto.Completed,
+                CreatedAt = DateTime.UtcNow
+            };
+            await _progressRepository.AddAsync(progress);
+        }
+        else
+        {
+            progress.EpisodeId = episodeId;
+            progress.WatchedSeconds = dto.WatchedSeconds;
+            progress.Completed = dto.Completed;
+            await _progressRepository.UpdateAsync(progress);
+        }
+
+        return MapToDto(progress);
     }
 
     public async Task<CourseLessonProgressDto?> GetAsync(
@@ -174,10 +264,15 @@ public class CourseLessonProgressService
         if (courseId is null)
             return false;
 
-        return await _enrollmentRepository
-            .IsUserEnrolledAsync(
-                userId,
-                courseId.Value);
+        var hasEnrollment = await _enrollmentRepository
+            .IsUserEnrolledAsync(userId, courseId.Value);
+        if (hasEnrollment)
+            return true;
+
+        var course = await _courseRepository.GetByIdAsync(courseId.Value);
+        return course is not null &&
+            !string.IsNullOrWhiteSpace(course.Category) &&
+            await _categoryRepository.HasAccessAsync(userId, course.Category);
     }
 
     private static Guid GetUserId(
@@ -185,7 +280,9 @@ public class CourseLessonProgressService
     {
         var claim =
             user.FindFirst(
-                ClaimTypes.NameIdentifier);
+                ClaimTypes.NameIdentifier)
+            ?? user.FindFirst("sub")
+            ?? user.FindFirst("nameid");
 
         if (claim is null ||
             !Guid.TryParse(

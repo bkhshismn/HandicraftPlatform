@@ -98,6 +98,19 @@ public class CourseEpisodesController : ControllerBase
         return NoContent();
     }
 
+    [HttpPut("{episodeId:guid}")]
+    [Authorize(Roles = "Admin,Instructor")]
+    public async Task<ActionResult<CourseEpisodeDto>> UpdateEpisode(
+        Guid lessonId,
+        Guid episodeId,
+        [FromBody] CourseEpisodeUpdateDto dto)
+    {
+        var updated = await _episodeService.UpdateAsync(lessonId, episodeId, dto);
+        if (updated is null)
+            return NotFound();
+        return Ok(updated);
+    }
+
     // ============================================================
     // Stream HLS
     //

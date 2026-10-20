@@ -1,0 +1,10 @@
+**/bin/
+**/obj/
+**/.vs/
+**/.vscode/
+**/VideoStorage/
+**/.env
+**/appsettings.Local.json
+**/*.user
+**/*.tmp
+.git/

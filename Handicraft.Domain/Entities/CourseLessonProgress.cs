@@ -6,6 +6,8 @@ public class CourseLessonProgress : BaseEntity
 
     public Guid LessonId { get; set; }
 
+    public Guid? EpisodeId { get; set; }
+
 
     public bool Completed { get; set; }
 
@@ -16,4 +18,6 @@ public class CourseLessonProgress : BaseEntity
     public User User { get; set; } = null!;
 
     public CourseLesson Lesson { get; set; } = null!;
+
+    public CourseEpisode? Episode { get; set; }
 }

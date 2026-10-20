@@ -7,4 +7,5 @@ public interface IUserService
     Task<UserDto?> GetByIdAsync(Guid id);
     Task<UserDto?> GetByPhoneAsync(string phone);
     Task<UserDto> CreateAsync(UserCreateDto dto);
+    Task<bool> UsernameIsUniqueAsync(string username);
 }

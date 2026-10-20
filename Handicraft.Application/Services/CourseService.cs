@@ -30,6 +30,7 @@ public class CourseService : ICourseService
             Price = dto.Price,
             IsPublished = dto.IsPublished,
             DurationMinutes = dto.DurationMinutes,
+            Category = string.IsNullOrWhiteSpace(dto.Category) ? "عمومی" : dto.Category.Trim(),
             CreatedAt = DateTime.UtcNow
         };
 
@@ -91,11 +92,21 @@ public class CourseService : ICourseService
                                     // یک Lesson می‌تواند چند Episode داشته باشد.
                                     // فعلاً اولین Episode را به عنوان ویدئوی اصلی
                                     // برای DTO فعلی انتخاب می‌کنیم.
-                                    var episode =
-                                     lesson.Episodes?
-                                         .Where(x => x.Status == VideoProcessingStatus.Ready)
-                                         .OrderByDescending(x => x.CreatedAt)
-                                         .FirstOrDefault();
+                                    var episodes = lesson.Episodes?
+                                        .OrderBy(x => x.Order)
+                                        .Select(x => new CourseEpisodeDto(
+                                            x.Id,
+                                            x.Title,
+                                            x.Description,
+                                            x.VideoUrl,
+                                            x.Order,
+                                            x.DurationSeconds,
+                                            x.IsFree,
+                                            x.Status))
+                                        .ToList() ?? [];
+                                    var episode = episodes
+                                        .Where(x => x.Status == VideoProcessingStatus.Ready)
+                                        .LastOrDefault();
 
                                     return new CourseLessonDto
                                     {
@@ -119,7 +130,9 @@ public class CourseService : ICourseService
                                             episode?.Status.ToString(),
 
                                         HasVideo =
-                                            episode != null
+                                            episodes.Count > 0,
+
+                                        Episodes = episodes
                                     };
                                 })
                                 .ToList()

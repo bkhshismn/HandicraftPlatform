@@ -5,6 +5,8 @@ namespace Handicraft.Application.Contracts.Persistence;
 public interface IPortfolioItemRepository
     : IGenericRepository<PortfolioItem>
 {
+    Task<IReadOnlyList<PortfolioItem>> GetAllWithImagesAsync();
+
     Task<IReadOnlyList<PortfolioItem>> GetPublishedItemsAsync();
 
     Task<IReadOnlyList<PortfolioItem>> GetItemsByCategoryAsync(

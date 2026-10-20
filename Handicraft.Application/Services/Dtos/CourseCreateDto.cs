@@ -9,5 +9,6 @@ public record CourseCreateDto(
     decimal Price,
     bool IsPublished,
     int DurationMinutes,
-    IReadOnlyList<CourseEpisodeCreateDto>? Episodes = null
+    IReadOnlyList<CourseEpisodeCreateDto>? Episodes = null,
+    string Category = "عمومی"
 );

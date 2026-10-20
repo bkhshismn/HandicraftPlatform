@@ -32,7 +32,11 @@ public class UserService : IUserService
     public async Task<UserDto> CreateAsync(UserCreateDto dto)
     {
         var user = _mapper.Map<User>(dto);
+        if (string.IsNullOrWhiteSpace(user.Username))
+            user.Username = user.Phone;
         var created = await _userRepository.AddAsync(user);
         return _mapper.Map<UserDto>(created);
     }
+
+    public Task<bool> UsernameIsUniqueAsync(string username) => _userRepository.IsUsernameUniqueAsync(username);
 }

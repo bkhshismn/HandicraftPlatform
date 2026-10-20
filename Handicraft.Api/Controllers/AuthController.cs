@@ -67,6 +67,7 @@ public class AuthController : ControllerBase
         {
             Id = Guid.NewGuid(),
             Phone = dto.Phone,
+            Username = dto.Phone,
             Name = dto.Name,
 
             Role = "User",
@@ -218,7 +219,8 @@ public class AuthController : ControllerBase
     {
         if (dto == null) return BadRequest();
 
-        var user = await _userRepository.GetByPhoneAsync(dto.Phone);
+        var loginName = string.IsNullOrWhiteSpace(dto.Username) ? dto.Phone : dto.Username;
+        var user = await _userRepository.GetByUsernameAsync(loginName);
         if (user is null)
         {
             return Unauthorized(new { message = "Invalid credentials" });
@@ -259,7 +261,7 @@ public class AuthController : ControllerBase
         {
             new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new Claim(JwtRegisteredClaimNames.UniqueName, user.Phone),
+            new Claim(JwtRegisteredClaimNames.UniqueName, user.Username),
             new Claim(ClaimTypes.Name, user.Name),
             new Claim(ClaimTypes.Role, role),
             new Claim("role", role),

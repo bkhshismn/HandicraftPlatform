@@ -9,6 +9,8 @@ public class AppDbContext : DbContext
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
     public DbSet<User> Users => Set<User>();
+    public DbSet<UserCourseCategory> UserCourseCategories => Set<UserCourseCategory>();
+    public DbSet<CourseCategory> CourseCategories => Set<CourseCategory>();
     public DbSet<Course> Courses => Set<Course>();
     public DbSet<CourseEpisode> CourseEpisodes => Set<CourseEpisode>();
     public DbSet<CourseEnrollment> CourseEnrollments => Set<CourseEnrollment>();
@@ -30,13 +32,32 @@ public class AppDbContext : DbContext
         {
             entity.ToTable("Users");
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.Phone).IsRequired().HasMaxLength(15);
+            entity.Property(e => e.Phone).IsRequired().HasMaxLength(50);
             entity.HasIndex(e => e.Phone).IsUnique();
+            entity.Property(e => e.Username).IsRequired().HasMaxLength(50);
+            entity.HasIndex(e => e.Username).IsUnique();
             entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
             entity.Property(e => e.PasswordHash).IsRequired().HasMaxLength(500);
             entity.Property(e => e.Role).IsRequired().HasMaxLength(20);
             entity.Property(e => e.IsActive).IsRequired();
             entity.Property(e => e.CreatedAt).IsRequired();
+        });
+
+        modelBuilder.Entity<UserCourseCategory>(entity =>
+        {
+            entity.ToTable("UserCourseCategories");
+            entity.HasKey(x => new { x.UserId, x.Category });
+            entity.Property(x => x.Category).IsRequired().HasMaxLength(100);
+            entity.HasIndex(x => x.Category);
+            entity.HasOne(x => x.User).WithMany(x => x.CourseCategories).HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<CourseCategory>(entity =>
+        {
+            entity.ToTable("CourseCategories");
+            entity.HasKey(x => x.Name);
+            entity.Property(x => x.Name).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.CreatedAt).IsRequired();
         });
 
         // Course
@@ -224,6 +245,13 @@ public class AppDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(x => x.LessonId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(x => x.Episode)
+                .WithMany()
+                .HasForeignKey(x => x.EpisodeId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(x => new { x.UserId, x.LessonId, x.EpisodeId });
 
         });
         modelBuilder.Entity<PortfolioImage>()

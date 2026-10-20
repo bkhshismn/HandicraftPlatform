@@ -31,4 +31,5 @@ public class CourseLessonDto
 
     public string? ThumbnailUrl { get; set; }
     public bool HasVideo { get; set; }
+    public List<CourseEpisodeDto> Episodes { get; set; } = [];
 }

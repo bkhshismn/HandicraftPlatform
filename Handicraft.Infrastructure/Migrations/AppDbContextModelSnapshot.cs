@@ -121,6 +121,20 @@ namespace Handicraft.Infrastructure.Migrations
                     b.ToTable("Courses", (string)null);
                 });
 
+            modelBuilder.Entity("Handicraft.Domain.Entities.CourseCategory", b =>
+                {
+                    b.Property<string>("Name")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Name");
+
+                    b.ToTable("CourseCategories", (string)null);
+                });
+
             modelBuilder.Entity("Handicraft.Domain.Entities.CourseEpisode", b =>
                 {
                     b.Property<Guid>("Id")
@@ -229,6 +243,9 @@ namespace Handicraft.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("EpisodeId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("LessonId")
                         .HasColumnType("uuid");
 
@@ -243,9 +260,11 @@ namespace Handicraft.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("EpisodeId");
+
                     b.HasIndex("LessonId");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("UserId", "LessonId", "EpisodeId");
 
                     b.ToTable("CourseLessonProgresses");
                 });
@@ -445,8 +464,8 @@ namespace Handicraft.Infrastructure.Migrations
 
                     b.Property<string>("Phone")
                         .IsRequired()
-                        .HasMaxLength(15)
-                        .HasColumnType("character varying(15)");
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
 
                     b.Property<string>("Role")
                         .IsRequired()
@@ -456,12 +475,36 @@ namespace Handicraft.Infrastructure.Migrations
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Phone")
                         .IsUnique();
 
+                    b.HasIndex("Username")
+                        .IsUnique();
+
                     b.ToTable("Users", (string)null);
+                });
+
+            modelBuilder.Entity("Handicraft.Domain.Entities.UserCourseCategory", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Category")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("UserId", "Category");
+
+                    b.HasIndex("Category");
+
+                    b.ToTable("UserCourseCategories", (string)null);
                 });
 
             modelBuilder.Entity("Handicraft.Domain.Entities.UserDevice", b =>
@@ -563,6 +606,11 @@ namespace Handicraft.Infrastructure.Migrations
 
             modelBuilder.Entity("Handicraft.Domain.Entities.CourseLessonProgress", b =>
                 {
+                    b.HasOne("Handicraft.Domain.Entities.CourseEpisode", "Episode")
+                        .WithMany()
+                        .HasForeignKey("EpisodeId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
                     b.HasOne("Handicraft.Domain.Entities.CourseLesson", "Lesson")
                         .WithMany()
                         .HasForeignKey("LessonId")
@@ -574,6 +622,8 @@ namespace Handicraft.Infrastructure.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Episode");
 
                     b.Navigation("Lesson");
 
@@ -624,6 +674,17 @@ namespace Handicraft.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Handicraft.Domain.Entities.UserCourseCategory", b =>
+                {
+                    b.HasOne("Handicraft.Domain.Entities.User", "User")
+                        .WithMany("CourseCategories")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Handicraft.Domain.Entities.UserDevice", b =>
                 {
                     b.HasOne("Handicraft.Domain.Entities.User", "User")
@@ -661,6 +722,8 @@ namespace Handicraft.Infrastructure.Migrations
 
             modelBuilder.Entity("Handicraft.Domain.Entities.User", b =>
                 {
+                    b.Navigation("CourseCategories");
+
                     b.Navigation("Devices");
 
                     b.Navigation("Enrollments");

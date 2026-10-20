@@ -17,6 +17,12 @@ public class PortfolioService : IPortfolioService
         _mapper = mapper;
     }
 
+    public async Task<IEnumerable<PortfolioItemDto>> GetAllAsync()
+    {
+        var items = await _repo.GetAllWithImagesAsync();
+        return items.Select(i => _mapper.Map<PortfolioItemDto>(i)).ToList();
+    }
+
     public async Task<IEnumerable<PortfolioItemDto>> GetPublishedAsync()
     {
         var items = await _repo.GetPublishedItemsAsync();

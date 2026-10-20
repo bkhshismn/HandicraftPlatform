@@ -1,6 +1,43 @@
-version: '3.8'
-
 services:
+  frontend:
+    build:
+      context: ../../MarziHandicrafts.Client
+      dockerfile: Dockerfile
+    container_name: handicraft_frontend
+    environment:
+      ASPNETCORE_HTTP_PORTS: 8080
+      Api__BaseUrl: http://api:8080/
+      Media__PublicBaseUrl: ${MEDIA_PUBLIC_BASE_URL:-http://localhost:8080}
+    ports:
+      - "127.0.0.1:8081:8080"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: handicraft_api
+    environment:
+      ASPNETCORE_HTTP_PORTS: 8080
+      Database__ApplyMigrationsOnStartup: "true"
+      VideoStorage__BasePath: /app/VideoStorage
+      Media__PublicBaseUrl: ${MEDIA_PUBLIC_BASE_URL:-http://localhost:8080}
+      Cors__AllowedOrigins__0: ${FRONTEND_PUBLIC_ORIGIN:-http://localhost:8081}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:?Set SEED_ADMIN_PASSWORD for initial admin seeding}
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      Jwt__Key: ${JWT_KEY:?Set JWT_KEY to a random secret of at least 32 characters}
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - media_storage:/app/wwwroot/uploads
+      - video_storage:/app/VideoStorage
+    restart: unless-stopped
+
   postgres:
     image: postgres:15-alpine
     container_name: handicraft_db
@@ -10,7 +47,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       PGDATA: /var/lib/postgresql/data/pgdata
     ports:
-      - "${POSTGRES_PORT}:5432"
+      - "127.0.0.1:${POSTGRES_PORT}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
@@ -23,3 +60,8 @@ services:
 volumes:
   postgres_data:
     driver: local
+  media_storage:
+    driver: local
+  video_storage:
+    name: marzi_video_storage
+    external: true

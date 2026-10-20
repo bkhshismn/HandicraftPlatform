@@ -17,6 +17,14 @@ public class PortfolioController : ControllerBase
         _service = service;
     }
 
+    [HttpGet]
+    [Authorize(Roles = "Admin,Instructor")]
+    public async Task<ActionResult<IEnumerable<PortfolioItemDto>>> GetAll()
+    {
+        var items = await _service.GetAllAsync();
+        return Ok(items);
+    }
+
     [HttpGet("published")]
     public async Task<ActionResult<IEnumerable<PortfolioItemDto>>> GetPublished()
     {

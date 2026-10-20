@@ -10,15 +10,18 @@ public class CourseEpisodeService : ICourseEpisodeService
 {
     private readonly ICourseEpisodeRepository _episodeRepository;
     private readonly ICourseEnrollmentRepository _enrollmentRepository;
+    private readonly IUserCourseCategoryRepository _categoryRepository;
     private readonly IVideoStorageService _videoStorage;
 
     public CourseEpisodeService(
         ICourseEpisodeRepository episodeRepository,
         ICourseEnrollmentRepository enrollmentRepository,
+        IUserCourseCategoryRepository categoryRepository,
         IVideoStorageService videoStorage)
     {
         _episodeRepository = episodeRepository;
         _enrollmentRepository = enrollmentRepository;
+        _categoryRepository = categoryRepository;
         _videoStorage = videoStorage;
     }
 
@@ -45,7 +48,7 @@ public class CourseEpisodeService : ICourseEpisodeService
 
             Title = dto.Title,
 
-            Description = dto.Description,
+            Description = dto.Description?.Trim() ?? string.Empty,
 
             VideoUrl = string.Empty,
 
@@ -140,6 +143,28 @@ public class CourseEpisodeService : ICourseEpisodeService
 
         await _episodeRepository.DeleteAsync(episode);
         return true;
+    }
+
+    public async Task<CourseEpisodeDto?> UpdateAsync(
+        Guid lessonId,
+        Guid episodeId,
+        CourseEpisodeUpdateDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Title))
+            throw new InvalidOperationException("عنوان ویدئو را وارد کنید.");
+        if (dto.Order < 1)
+            throw new InvalidOperationException("ترتیب ویدئو باید حداقل ۱ باشد.");
+
+        var episode = await _episodeRepository.GetByIdAsync(episodeId);
+        if (episode is null || episode.LessonId != lessonId)
+            return null;
+
+        episode.Title = dto.Title.Trim();
+        episode.Description = dto.Description?.Trim() ?? string.Empty;
+        episode.Order = dto.Order;
+        episode.IsFree = dto.IsFree;
+        await _episodeRepository.UpdateAsync(episode);
+        return MapToDto(episode);
     }
 
 
@@ -343,6 +368,9 @@ public class CourseEpisodeService : ICourseEpisodeService
                 .IsUserEnrolledAsync(
                     userId,
                     course.Id);
+        var hasCategoryAccess = !string.IsNullOrWhiteSpace(course.Category) &&
+            await _categoryRepository.HasAccessAsync(userId, course.Category);
+        isEnrolled |= hasCategoryAccess;
 
         Console.WriteLine(
             $"[VIDEO ACCESS] IsEnrolled={isEnrolled}");
@@ -363,7 +391,7 @@ public class CourseEpisodeService : ICourseEpisodeService
         // ========================================================
 
         Console.WriteLine(
-            "[VIDEO ACCESS] User is enrolled.");
+            "[VIDEO ACCESS] User has course or category access.");
 
         Console.WriteLine(
             "[VIDEO ACCESS] Access granted.");
