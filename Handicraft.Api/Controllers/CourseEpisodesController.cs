@@ -1,7 +1,8 @@
-﻿using Handicraft.Application.Contracts.Services;
+using Handicraft.Application.Contracts.Services;
 using Handicraft.Application.Services.Dtos;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Text;
 
 namespace Handicraft.Api.Controllers;
 
@@ -298,10 +299,79 @@ public class CourseEpisodesController : ControllerBase
         Response.Headers["Expires"] =
             "0";
 
+        // --------------------------------------------------------
+        // iOS / Safari: HLS بومی هدر Authorization را همراه
+        // سگمنت‌ها نمی‌فرستد؛ پس مسیرهای داخل پلی‌لیست را با
+        // access_token بازنویسی می‌کنیم.
+        // --------------------------------------------------------
+
+        if (contentType == "application/vnd.apple.mpegurl")
+        {
+            var playlistToken = GetAccessToken();
+
+            if (!string.IsNullOrWhiteSpace(playlistToken))
+            {
+                var playlist =
+                    await System.IO.File.ReadAllTextAsync(fullPath);
+
+                return Content(
+                    RewritePlaylist(playlist, playlistToken),
+                    contentType);
+            }
+        }
+
         return PhysicalFile(
             fullPath,
             contentType,
             enableRangeProcessing: true);
+    }
+
+    // ============================================================
+    // Token helpers
+    // ============================================================
+
+    private string? GetAccessToken()
+    {
+        var header = Request.Headers.Authorization.ToString();
+
+        if (header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+            return header["Bearer ".Length..].Trim();
+
+        var query = Request.Query["access_token"].ToString();
+
+        return string.IsNullOrWhiteSpace(query) ? null : query;
+    }
+
+    private static string RewritePlaylist(
+        string playlist,
+        string token)
+    {
+        var encoded = Uri.EscapeDataString(token);
+
+        var builder = new StringBuilder();
+
+        foreach (var rawLine in playlist.Split('\n'))
+        {
+            var line = rawLine.TrimEnd('\r');
+
+            if (string.IsNullOrWhiteSpace(line) || line.StartsWith('#'))
+            {
+                builder.Append(line).Append('\n');
+
+                continue;
+            }
+
+            var separator = line.Contains('?') ? '&' : '?';
+
+            builder
+                .Append(line)
+                .Append(separator)
+                .Append("access_token=")
+                .Append(encoded)
+                .Append('\n');
+        }
+
+        return builder.ToString();
     }
 
     // ============================================================

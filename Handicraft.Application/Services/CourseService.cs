@@ -173,6 +173,26 @@ public class CourseService : ICourseService
         return MapToDto(course);
     }
 
+    public async Task<CourseDto?> SetFreeAsync(
+        Guid id,
+        bool isFree)
+    {
+        var course =
+            await _courseRepository.GetByIdWithContentAsync(id);
+
+        if (course is null)
+            return null;
+
+        course.IsFree = isFree;
+
+        if (isFree)
+            course.Price = 0;
+
+        await _courseRepository.UpdateAsync(course);
+
+        return MapToDto(course);
+    }
+
     public async Task<bool> DeleteAsync(Guid id)
     {
         if (_videoStorage is null)

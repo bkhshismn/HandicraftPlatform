@@ -9,5 +9,6 @@ public interface ICourseService
     Task<CourseDto?> GetByIdAsync(Guid id);
     Task<CourseDto> CreateAsync(CourseCreateDto dto);
     Task<CourseDto?> SetPublishedAsync(Guid id, bool isPublished);
+    Task<CourseDto?> SetFreeAsync(Guid id, bool isFree);
     Task<bool> DeleteAsync(Guid id);
 }

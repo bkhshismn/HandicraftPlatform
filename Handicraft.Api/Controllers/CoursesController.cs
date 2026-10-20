@@ -79,6 +79,23 @@ public class CoursesController : ControllerBase
         return Ok(course);
     }
 
+    [HttpPut("{id:guid}/free")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<CourseDto>> SetFree(
+        Guid id,
+        [FromBody] SetCourseFreeRequest request)
+    {
+        var course =
+            await _courseService.SetFreeAsync(
+                id,
+                request.IsFree);
+
+        if (course is null)
+            return NotFound();
+
+        return Ok(course);
+    }
+
     [HttpDelete("{id:guid}")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Delete(Guid id)
@@ -95,4 +112,9 @@ public class CoursesController : ControllerBase
 public sealed class SetCoursePublishedRequest
 {
     public bool IsPublished { get; set; }
+}
+
+public sealed class SetCourseFreeRequest
+{
+    public bool IsFree { get; set; }
 }

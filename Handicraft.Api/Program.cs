@@ -1,4 +1,4 @@
-﻿using Handicraft.Infrastructure.Persistence.Data;
+using Handicraft.Infrastructure.Persistence.Data;
 using Handicraft.Application.Contracts.Persistence;
 using Handicraft.Infrastructure.Repositories;
 using Handicraft.Application.Services;
@@ -165,6 +165,15 @@ builder.Services.AddHostedService<
 
 
 // ==========================
+// System status
+// ==========================
+
+builder.Services.AddSingleton<
+    ISystemStatusService,
+    SystemStatusService>();
+
+
+// ==========================
 // Controllers
 // ==========================
 
@@ -292,6 +301,23 @@ builder.Services.AddAuthentication(
             options.Events =
                 new JwtBearerEvents
                 {
+                    // سافاری/iOS برای HLS بومی هدر Authorization نمی‌فرستد؛
+                    // توکن را از query هم می‌پذیریم.
+                    OnMessageReceived =
+                        context =>
+                        {
+                            if (string.IsNullOrWhiteSpace(context.Token))
+                            {
+                                var queryToken =
+                                    context.Request.Query["access_token"].ToString();
+
+                                if (!string.IsNullOrWhiteSpace(queryToken))
+                                    context.Token = queryToken;
+                            }
+
+                            return Task.CompletedTask;
+                        },
+
                     OnAuthenticationFailed =
                         context =>
                         {

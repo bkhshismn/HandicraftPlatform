@@ -26,8 +26,8 @@ public class UsersController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> List()
     {
-        var users = await _db.Users.Where(x => x.Role != "Admin").OrderBy(x => x.Name)
-            .Select(x => new { x.Id, x.Name, Username = x.Username, x.IsActive,
+        var users = await _db.Users.OrderBy(x => x.Role).ThenBy(x => x.Name)
+            .Select(x => new { x.Id, x.Name, Username = x.Username, x.Role, x.IsActive,
                 Categories = x.CourseCategories.Select(c => c.Category).ToList() }).ToListAsync();
         var categories = await _db.CourseCategories.Select(x => x.Name).ToListAsync();
         categories = categories.Concat(CourseCategories.PapierMache).Concat(await _db.Courses.Select(x => x.Category).Distinct().ToListAsync()).Distinct().OrderBy(x => x).ToList();
@@ -51,10 +51,39 @@ public class UsersController : ControllerBase
         return Ok(new { user.Id, user.Name, Username = user.Username, user.Role, user.IsActive, Categories = Array.Empty<string>() });
     }
 
+    [HttpPut("{id:guid}/role")]
+    public async Task<IActionResult> SetRole(Guid id, [FromBody] SetUserRoleRequest request)
+    {
+        var role = request.Role?.Trim();
+        if (role is not ("User" or "Admin"))
+            return BadRequest(new { message = "نقش کاربر معتبر نیست." });
+
+        var user = await _db.Users.FirstOrDefaultAsync(x => x.Id == id);
+        if (user is null) return NotFound();
+
+        var currentId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("sub")?.Value;
+
+        if (Guid.TryParse(currentId, out var currentUserId) && currentUserId == user.Id)
+            return BadRequest(new { message = "نقش حساب خودتان را نمی‌توانید تغییر دهید." });
+
+        if (user.Role == "Admin" && role != "Admin")
+        {
+            var adminCount = await _db.Users.CountAsync(x => x.Role == "Admin" && x.IsActive);
+            if (adminCount <= 1)
+                return BadRequest(new { message = "حداقل یک مدیر باید باقی بماند." });
+        }
+
+        user.Role = role;
+        user.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+        return Ok(new { user.Id, user.Role });
+    }
+
     [HttpPut("{id:guid}/categories")]
     public async Task<IActionResult> SetCategories(Guid id, [FromBody] SetUserCategoriesRequest request)
     {
-        var user = await _db.Users.Include(x => x.CourseCategories).Include(x => x.Enrollments).FirstOrDefaultAsync(x => x.Id == id && x.Role != "Admin");
+        var user = await _db.Users.Include(x => x.CourseCategories).Include(x => x.Enrollments).FirstOrDefaultAsync(x => x.Id == id);
         if (user == null) return NotFound();
         var categories = request.Categories.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).Distinct().ToHashSet();
         _db.UserCourseCategories.RemoveRange(user.CourseCategories.ToList());
@@ -78,7 +107,7 @@ public class UsersController : ControllerBase
         var name = request.Name?.Trim();
         if (string.IsNullOrWhiteSpace(name) || name.Length > 100 || name.All(c => c == '?' || char.IsWhiteSpace(c)))
             return BadRequest(new { message = "نام نمایشی معتبر وارد کنید." });
-        var user = await _db.Users.FirstOrDefaultAsync(x => x.Id == id && x.Role != "Admin");
+        var user = await _db.Users.FirstOrDefaultAsync(x => x.Id == id);
         if (user == null) return NotFound();
         user.Name = name;
         user.UpdatedAt = DateTime.UtcNow;
@@ -113,5 +142,6 @@ public class UsersController : ControllerBase
 }
 
 public sealed class CreateManagedUserRequest { public string Username { get; set; } = ""; public string Name { get; set; } = ""; public string Password { get; set; } = ""; public string Role { get; set; } = "User"; }
+public sealed class SetUserRoleRequest { public string Role { get; set; } = "User"; }
 public sealed class SetUserCategoriesRequest { public List<string> Categories { get; set; } = []; }
 public sealed class SetUserNameRequest { public string Name { get; set; } = ""; }
