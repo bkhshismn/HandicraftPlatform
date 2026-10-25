@@ -2,5 +2,7 @@
 
 public record AdminUpdateOrderDto(
     decimal? EstimatedPrice,
-    string Status
+    string Status,
+    string? Type = null,
+    string? Description = null
 );

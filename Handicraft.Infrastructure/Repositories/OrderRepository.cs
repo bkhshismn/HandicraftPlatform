@@ -40,7 +40,9 @@ public class OrderRepository : GenericRepository<Order>, IOrderRepository
     public async Task<Order?> UpdateByAdminAsync(
     Guid id,
     decimal? estimatedPrice,
-    string status)
+    string status,
+    string? type = null,
+    string? description = null)
     {
         var order =
             await _context.Orders
@@ -51,9 +53,34 @@ public class OrderRepository : GenericRepository<Order>, IOrderRepository
 
         order.EstimatedPrice = estimatedPrice;
         order.Status = status;
+        if (!string.IsNullOrWhiteSpace(type)) order.Type = type.Trim();
+        if (description is not null) order.Description = description.Trim();
 
         await _context.SaveChangesAsync();
 
         return order;
+    }
+
+    public async Task<Order?> UpdateByUserAsync(Guid id, Guid userId, string type, string description, string? imageUrl)
+    {
+        var order = await _context.Orders.FirstOrDefaultAsync(o => o.Id == id && o.UserId == userId);
+        if (order is null) return null;
+        order.Type = type;
+        order.Description = description;
+        order.ImageUrl = imageUrl;
+        await _context.SaveChangesAsync();
+        return order;
+    }
+
+    public async Task<bool> DeleteAsync(Guid id, Guid? ownerId = null)
+    {
+        var query = _context.Orders.Where(o => o.Id == id);
+        if (ownerId.HasValue)
+            query = query.Where(o => o.UserId == ownerId.Value);
+        var order = await query.FirstOrDefaultAsync();
+        if (order is null) return false;
+        _context.Orders.Remove(order);
+        await _context.SaveChangesAsync();
+        return true;
     }
 }

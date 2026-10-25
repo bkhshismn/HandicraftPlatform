@@ -117,8 +117,7 @@ public class CourseService : ICourseService
                                         DurationSeconds =
                                             lesson.DurationSeconds,
 
-                                        IsFreePreview =
-                                            episode?.IsFree ?? lesson.IsFreePreview,
+                                        IsFreePreview = c.IsFree,
 
                                         OrderIndex =
                                             lesson.OrderIndex,

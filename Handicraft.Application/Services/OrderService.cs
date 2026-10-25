@@ -77,6 +77,9 @@ public class OrderService : IOrderService
         var order =
             _mapper.Map<Order>(dto);
 
+        // DTO mapping must never leave a newly-created order at DateTime.MinValue.
+        order.CreatedAt = DateTime.UtcNow;
+
         // UserId فقط از JWT می‌آید.
         order.UserId = userId;
 
@@ -104,10 +107,20 @@ public class OrderService : IOrderService
                 .UpdateByAdminAsync(
                     id,
                     dto.EstimatedPrice,
-                    dto.Status);
+                    dto.Status,
+                    dto.Type,
+                    dto.Description);
 
         return order is null
             ? null
             : _mapper.Map<OrderDto>(order);
     }
+
+    public async Task<OrderDto?> UpdateByUserAsync(Guid id, Guid userId, OrderCreateDto dto)
+    {
+        var order = await _orderRepository.UpdateByUserAsync(id, userId, dto.Type, dto.Description, dto.ImageUrl);
+        return order is null ? null : _mapper.Map<OrderDto>(order);
+    }
+
+    public Task<bool> DeleteAsync(Guid id, Guid? ownerId = null) => _orderRepository.DeleteAsync(id, ownerId);
 }

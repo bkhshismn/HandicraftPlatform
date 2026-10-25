@@ -47,6 +47,23 @@ public class PortfolioController : ControllerBase
         var created = await _service.CreateAsync(dto);
         return CreatedAtAction(null, created);
     }
+
+    [HttpPut("{id:guid}")]
+    [Authorize(Roles = "Admin,Instructor")]
+    public async Task<ActionResult<PortfolioItemDto>> Update(Guid id, [FromBody] PortfolioCreateDto dto)
+    {
+        if (dto == null) return BadRequest();
+        var updated = await _service.UpdateAsync(id, dto);
+        return updated is null ? NotFound() : Ok(updated);
+    }
+
+    [HttpDelete("{id:guid}")]
+    [Authorize(Roles = "Admin,Instructor")]
+    public async Task<IActionResult> Delete(Guid id)
+    {
+        return await _service.DeleteAsync(id) ? NoContent() : NotFound();
+    }
+
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<PortfolioItemDto>> GetById(Guid id)
     {

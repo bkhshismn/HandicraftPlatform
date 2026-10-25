@@ -22,6 +22,8 @@ public class AppDbContext : DbContext
     public DbSet<CourseLesson> CourseLessons { get; set; }
     public DbSet<CourseLessonProgress> CourseLessonProgresses { get; set; }
     public DbSet<PortfolioImage> PortfolioImages => Set<PortfolioImage>();
+    public DbSet<AdminNotification> AdminNotifications => Set<AdminNotification>();
+    public DbSet<ShopProduct> ShopProducts => Set<ShopProduct>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -40,7 +42,37 @@ public class AppDbContext : DbContext
             entity.Property(e => e.PasswordHash).IsRequired().HasMaxLength(500);
             entity.Property(e => e.Role).IsRequired().HasMaxLength(20);
             entity.Property(e => e.IsActive).IsRequired();
+            entity.Property(e => e.IsApproved).IsRequired();
             entity.Property(e => e.CreatedAt).IsRequired();
+        });
+
+        modelBuilder.Entity<AdminNotification>(entity =>
+        {
+            entity.ToTable("AdminNotifications");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Title).IsRequired().HasMaxLength(120);
+            entity.Property(x => x.Message).IsRequired().HasMaxLength(500);
+            entity.Property(x => x.TargetUrl).IsRequired().HasMaxLength(300);
+            entity.Property(x => x.IsRead).IsRequired();
+            entity.Property(x => x.RecipientUserId);
+            entity.Property(x => x.CreatedAt).IsRequired();
+            entity.HasIndex(x => new { x.IsRead, x.CreatedAt });
+            entity.HasIndex(x => new { x.RecipientUserId, x.IsRead, x.CreatedAt });
+        });
+
+        modelBuilder.Entity<ShopProduct>(entity =>
+        {
+            entity.ToTable("ShopProducts");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasMaxLength(40);
+            entity.Property(x => x.Name).HasMaxLength(180).IsRequired();
+            entity.Property(x => x.Category).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.Description).HasMaxLength(2000).IsRequired();
+            entity.Property(x => x.ImageUrl).HasMaxLength(600).IsRequired();
+            entity.Property(x => x.Badge).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.ImagePosition).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.Availability).HasMaxLength(300).IsRequired();
+            entity.HasIndex(x => new { x.IsPublished, x.CreatedAt });
         });
 
         modelBuilder.Entity<UserCourseCategory>(entity =>

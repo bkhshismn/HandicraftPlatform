@@ -2,6 +2,8 @@ namespace Handicraft.Application.Services.Dtos;
 
 public sealed class AnalyticsSummaryDto
 {
+    public int TotalPageViews { get; set; }
+
     public int PageViewsToday { get; set; }
 
     public int PageViews7Days { get; set; }

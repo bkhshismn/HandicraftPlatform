@@ -55,4 +55,26 @@ public class PortfolioService : IPortfolioService
 
         return _mapper.Map<PortfolioItemDto>(item);
     }
+
+    public async Task<PortfolioItemDto?> UpdateAsync(Guid id, PortfolioCreateDto dto)
+    {
+        var item = await _repo.GetByIdAsync(id);
+        if (item is null) return null;
+
+        item.Title = dto.Title.Trim();
+        item.Category = dto.Category.Trim();
+        item.Description = dto.Description.Trim();
+        item.IsVisible = dto.IsVisible;
+        item.UpdatedAt = DateTime.UtcNow;
+        await _repo.UpdateAsync(item);
+        return _mapper.Map<PortfolioItemDto>(item);
+    }
+
+    public async Task<bool> DeleteAsync(Guid id)
+    {
+        var item = await _repo.GetByIdAsync(id);
+        if (item is null) return false;
+        await _repo.DeleteAsync(item);
+        return true;
+    }
 }

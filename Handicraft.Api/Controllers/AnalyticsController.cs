@@ -97,6 +97,7 @@ public class AnalyticsController : ControllerBase
 
         var summary = new AnalyticsSummaryDto
         {
+            TotalPageViews = await CountAllPageViewsAsync(connection),
             PageViewsToday =
                 await CountAsync(connection, "PageViews", "today"),
 
@@ -126,6 +127,14 @@ public class AnalyticsController : ControllerBase
         };
 
         return Ok(summary);
+    }
+
+    private static async Task<int> CountAllPageViewsAsync(DbConnection connection)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = @"SELECT COUNT(*) FROM ""PageViews""";
+        var result = await command.ExecuteScalarAsync();
+        return result is null ? 0 : Convert.ToInt32(result);
     }
 
     // ============================================================

@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using Handicraft.Domain.Entities;
+using Handicraft.Infrastructure.Persistence.Data;
 
 namespace Handicraft.Api.Controllers;
 
@@ -13,10 +15,12 @@ namespace Handicraft.Api.Controllers;
 public class OrdersController : ControllerBase
 {
     private readonly IOrderService _orderService;
+    private readonly AppDbContext _db;
 
-    public OrdersController(IOrderService orderService)
+    public OrdersController(IOrderService orderService, AppDbContext db)
     {
         _orderService = orderService;
+        _db = db;
     }
 
     // ============================================================
@@ -115,6 +119,39 @@ public class OrdersController : ControllerBase
             created);
     }
 
+    [HttpPut("{id:guid}")]
+    public async Task<ActionResult<OrderDto>> UpdateByUser(Guid id, [FromBody] OrderCreateDto dto)
+    {
+        if (dto is null || string.IsNullOrWhiteSpace(dto.Type) || dto.Type.Length > 50 || string.IsNullOrWhiteSpace(dto.Description) || dto.Description.Length > 2000 || dto.ImageUrl?.Length > 500)
+            return BadRequest();
+        var updated = await _orderService.UpdateByUserAsync(id, GetCurrentUserId(), dto);
+        if (updated is null) return NotFound();
+        await NotifyOrderChangedAsync(updated, "ویرایش سفارش", "اطلاعات سفارش شما توسط خودتان ویرایش شد.");
+        return Ok(updated);
+    }
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> DeleteByUser(Guid id)
+    {
+        var ownerId = GetCurrentUserId();
+        var existing = await _orderService.GetByIdAsync(id);
+        if (existing is null || existing.UserId != ownerId) return NotFound();
+        if (!await _orderService.DeleteAsync(id, ownerId)) return NotFound();
+        await NotifyOrderChangedAsync(existing, "حذف سفارش", "سفارش شما توسط خودتان حذف شد.");
+        return NoContent();
+    }
+
+    [HttpDelete("{id:guid}/admin")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> DeleteByAdmin(Guid id)
+    {
+        var existing = await _orderService.GetByIdAsync(id);
+        if (existing is null) return NotFound();
+        if (!await _orderService.DeleteAsync(id)) return NotFound();
+        await NotifyOrderChangedAsync(existing, "حذف سفارش", "ادمین سفارش شما را حذف کرد.");
+        return NoContent();
+    }
+
     // ============================================================
     // Current User Id
     // ============================================================
@@ -155,6 +192,9 @@ public class OrdersController : ControllerBase
         if (dto is null)
             return BadRequest();
 
+        if ((!string.IsNullOrWhiteSpace(dto.Type) && dto.Type.Length > 50) || dto.Description?.Length > 2000)
+            return BadRequest("اطلاعات سفارش بیش از حد مجاز است.");
+
         if (dto.EstimatedPrice.HasValue &&
             dto.EstimatedPrice.Value < 0)
         {
@@ -184,6 +224,16 @@ public class OrdersController : ControllerBase
         if (updated is null)
             return NotFound();
 
+        await NotifyOrderChangedAsync(updated, "تغییر سفارش", "قیمت یا وضعیت سفارش شما توسط ادمین تغییر کرد.");
         return Ok(updated);
+    }
+
+    private async Task NotifyOrderChangedAsync(OrderDto order, string title, string userMessage)
+    {
+        var now = DateTime.UtcNow;
+        _db.AdminNotifications.AddRange(
+            new AdminNotification { Id = Guid.NewGuid(), Title = title, Message = $"سفارش {order.Type} (شناسه {order.Id}) تغییر کرد.", TargetUrl = "/admin/orders", CreatedAt = now },
+            new AdminNotification { Id = Guid.NewGuid(), RecipientUserId = order.UserId, Title = title, Message = userMessage, TargetUrl = "/orders", CreatedAt = now });
+        await _db.SaveChangesAsync();
     }
 }

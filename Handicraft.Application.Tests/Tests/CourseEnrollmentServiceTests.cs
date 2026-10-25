@@ -8,6 +8,7 @@ using Handicraft.Application.Contracts.Persistence;
 using Handicraft.Domain.Entities;
 using Moq;
 using Xunit;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Handicraft.Application.Tests.Tests;
 
@@ -15,7 +16,7 @@ public class CourseEnrollmentServiceTests
 {
     private IMapper CreateMapper()
     {
-        var config = new MapperConfiguration(cfg => cfg.AddProfile<Handicraft.Application.Services.MappingProfile>());
+        var config = new MapperConfiguration(cfg => cfg.AddProfile<Handicraft.Application.Services.MappingProfile>(), NullLoggerFactory.Instance);
         return config.CreateMapper();
     }
 

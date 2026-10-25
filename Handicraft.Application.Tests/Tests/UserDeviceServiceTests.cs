@@ -7,6 +7,7 @@ using Handicraft.Application.Services.Dtos;
 using Handicraft.Application.Contracts.Persistence;
 using Handicraft.Domain.Entities;
 using Moq;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace Handicraft.Application.Tests.Tests;
@@ -15,7 +16,7 @@ public class UserDeviceServiceTests
 {
     private IMapper CreateMapper()
     {
-        var config = new MapperConfiguration(cfg => cfg.AddProfile<Handicraft.Application.Services.MappingProfile>());
+        var config = new MapperConfiguration(cfg => cfg.AddProfile<Handicraft.Application.Services.MappingProfile>(), NullLoggerFactory.Instance);
         return config.CreateMapper();
     }
 

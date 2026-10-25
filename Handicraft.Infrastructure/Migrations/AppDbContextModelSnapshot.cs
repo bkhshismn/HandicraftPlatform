@@ -440,6 +440,48 @@ namespace Handicraft.Infrastructure.Migrations
                     b.ToTable("RefreshTokens", (string)null);
                 });
 
+            modelBuilder.Entity("Handicraft.Domain.Entities.AdminNotification", b =>
+                {
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid?>("RecipientUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("TargetUrl")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsRead", "CreatedAt");
+
+                    b.HasIndex("RecipientUserId", "IsRead", "CreatedAt");
+
+                    b.ToTable("AdminNotifications", (string)null);
+                });
+
             modelBuilder.Entity("Handicraft.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -450,6 +492,9 @@ namespace Handicraft.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsApproved")
                         .HasColumnType("boolean");
 
                     b.Property<string>("Name")
@@ -731,6 +776,22 @@ namespace Handicraft.Infrastructure.Migrations
                     b.Navigation("Orders");
 
                     b.Navigation("RefreshTokens");
+                });
+            modelBuilder.Entity("Handicraft.Domain.Entities.ShopProduct", b =>
+                {
+                    b.Property<string>("Id").HasMaxLength(40).HasColumnType("character varying(40)");
+                    b.Property<string>("Availability").IsRequired().HasMaxLength(300).HasColumnType("character varying(300)");
+                    b.Property<string>("Badge").IsRequired().HasMaxLength(100).HasColumnType("character varying(100)");
+                    b.Property<string>("Category").IsRequired().HasMaxLength(100).HasColumnType("character varying(100)");
+                    b.Property<DateTime>("CreatedAt").HasColumnType("timestamp with time zone");
+                    b.Property<string>("Description").IsRequired().HasMaxLength(2000).HasColumnType("character varying(2000)");
+                    b.Property<string>("ImagePosition").IsRequired().HasMaxLength(100).HasColumnType("character varying(100)");
+                    b.Property<string>("ImageUrl").IsRequired().HasMaxLength(600).HasColumnType("character varying(600)");
+                    b.Property<bool>("IsPublished").HasColumnType("boolean");
+                    b.Property<string>("Name").IsRequired().HasMaxLength(180).HasColumnType("character varying(180)");
+                    b.HasKey("Id");
+                    b.HasIndex("IsPublished", "CreatedAt");
+                    b.ToTable("ShopProducts");
                 });
 #pragma warning restore 612, 618
         }

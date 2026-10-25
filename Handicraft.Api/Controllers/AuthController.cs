@@ -8,6 +8,9 @@ using Handicraft.Api.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
+using Handicraft.Infrastructure.Persistence.Data;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Handicraft.Api.Controllers;
 
@@ -18,12 +21,14 @@ public class AuthController : ControllerBase
     private readonly IUserRepository _userRepository;
     private readonly IRefreshTokenRepository _refreshTokenRepository;
     private readonly IConfiguration _configuration;
+    private readonly AppDbContext _db;
 
-    public AuthController(IUserRepository userRepository, IRefreshTokenRepository refreshTokenRepository, IConfiguration configuration)
+    public AuthController(IUserRepository userRepository, IRefreshTokenRepository refreshTokenRepository, IConfiguration configuration, AppDbContext db)
     {
         _userRepository = userRepository;
         _refreshTokenRepository = refreshTokenRepository;
         _configuration = configuration;
+        _db = db;
     }
 
     [HttpPost("revoke")]
@@ -56,12 +61,15 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Register([FromBody] RegisterDto dto)
     {
         if (dto == null) return BadRequest();
+        if (string.IsNullOrWhiteSpace(dto.Phone) || dto.Phone.Length > 50 ||
+            string.IsNullOrWhiteSpace(dto.Name) || dto.Name.Length > 100)
+            return BadRequest(new { message = "نام و شماره موبایل معتبر وارد کنید." });
         // basic validation
         if (string.IsNullOrWhiteSpace(dto.Password) || dto.Password.Length < 8)
             return BadRequest(new { message = "Password must be at least 8 characters." });
 
         var unique = await _userRepository.IsPhoneUniqueAsync(dto.Phone);
-        if (!unique) return BadRequest(new { message = "Phone already registered" });
+        if (!unique) return Conflict(new { message = "این شمارهٔ موبایل قبلاً ثبت‌نام کرده است. با این شماره وارد شوید." });
 
         var user = new Domain.Entities.User
         {
@@ -72,7 +80,8 @@ public class AuthController : ControllerBase
 
             Role = "User",
 
-            IsActive = true,
+            IsActive = false,
+            IsApproved = false,
             CreatedAt = DateTime.UtcNow,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password)
         };
@@ -81,15 +90,7 @@ public class AuthController : ControllerBase
         // if repository does not save changes, ensure caller saves; our GenericRepository uses context and SaveChanges may be required.
         // Attempt to save via a minimal approach if repository exposes no SaveChanges: rely on unit of work not present � use context via cast if needed.
 
-        var token = GenerateToken(user);
-        // create refresh token
-        var refresh = CreateRefreshToken(user.Id);
-        if (_refreshTokenRepository != null)
-        {
-            await _refreshTokenRepository.AddAsync(refresh);
-        }
-
-        return Ok(new AuthResponseDto { Token = token, ExpiresInMinutes = _configuration.GetValue<int>("Jwt:ExpiresMinutes"), RefreshToken = refresh.Token });
+        return Accepted(new { message = "Registration received and awaiting administrator approval." });
     }
 
     [Authorize]
@@ -200,21 +201,37 @@ public class AuthController : ControllerBase
         var user = await _userRepository.GetByIdAsync(stored.UserId);
         if (user == null) return Unauthorized();
 
-        // rotate refresh token
-        stored.IsRevoked = true;
-
         var newRefresh = CreateRefreshToken(user.Id);
 
-        stored.ReplacedByToken = newRefresh.Token;
+        // Atomically claim the old token before inserting its replacement.
+        // Concurrent refresh requests can only update the active row once.
+        await using (var transaction = await _db.Database.BeginTransactionAsync())
+        {
+            var now = DateTime.UtcNow;
+            var claimed = await _db.RefreshTokens
+                .Where(x => x.Id == stored.Id &&
+                            !x.IsRevoked &&
+                            x.ExpiresAt > now)
+                .ExecuteUpdateAsync(update => update
+                    .SetProperty(x => x.IsRevoked, true)
+                    .SetProperty(x => x.ReplacedByToken, newRefresh.Token));
 
-        await _refreshTokenRepository.UpdateAsync(stored);
-        await _refreshTokenRepository.AddAsync(newRefresh);
+            if (claimed != 1)
+            {
+                await transaction.RollbackAsync();
+                return Unauthorized();
+            }
+
+            await _refreshTokenRepository.AddAsync(newRefresh);
+            await transaction.CommitAsync();
+        }
 
         var newAccess = GenerateToken(user);
         return Ok(new AuthResponseDto { Token = newAccess, ExpiresInMinutes = _configuration.GetValue<int>("Jwt:ExpiresMinutes"), RefreshToken = newRefresh.Token });
     }
 
     [HttpPost("login")]
+    [EnableRateLimiting("login")]
     public async Task<IActionResult> Login([FromBody] LoginDto dto)
     {
         if (dto == null) return BadRequest();
@@ -226,15 +243,31 @@ public class AuthController : ControllerBase
             return Unauthorized(new { message = "Invalid credentials" });
         }
 
+        var verified = BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash);
+        if (!verified) return Unauthorized(new { message = "Invalid credentials" });
+
+        if (!user.IsApproved)
+        {
+            return Unauthorized(new
+            {
+                message = "درخواست ثبت‌نام شما برای تأیید دسترسی به مدیر ارسال شده است. پس از تأیید می‌توانید وارد شوید."
+            });
+        }
+
         if (!user.IsActive)
         {
             return Unauthorized(new
             {
-                message = "User account is inactive"
+                message = "حساب کاربری شما مسدود است. برای رفع انسداد با مدیر تماس بگیرید."
             });
         }
-        var verified = BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash);
-        if (!verified) return Unauthorized(new { message = "Invalid credentials" });
+        if (!await RecordLoginIpAsync(user.Id, enforceDeviceLimit: user.Role != "Admin"))
+        {
+            return Unauthorized(new
+            {
+                message = "برای هر حساب حداکثر دو دستگاه مجاز است. دسترسی حساب شما مسدود شد؛ با مدیر تماس بگیرید."
+            });
+        }
 
         var token = GenerateToken(user);
         // create refresh token
@@ -247,10 +280,63 @@ public class AuthController : ControllerBase
         return Ok(new AuthResponseDto { Token = token, ExpiresInMinutes = _configuration.GetValue<int>("Jwt:ExpiresMinutes"), RefreshToken = refresh.Token });
     }
 
+    private async Task<bool> RecordLoginIpAsync(Guid userId, bool enforceDeviceLimit)
+    {
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+        if (string.IsNullOrWhiteSpace(ip)) return true;
+        if (ip.Length > 50) ip = ip[..50];
+
+        var device = await _db.UserDevices.FirstOrDefaultAsync(x => x.UserId == userId && x.IpAddress == ip);
+        var activeIpCount = await _db.UserDevices.CountAsync(x => x.UserId == userId && x.IsActive);
+        var isNewAllowedIp = device is null || !device.IsActive;
+        var exceedsLimit = enforceDeviceLimit && isNewAllowedIp && activeIpCount >= 2;
+        var now = DateTime.UtcNow;
+        if (device is null)
+        {
+            var agent = Request.Headers.UserAgent.ToString();
+            _db.UserDevices.Add(new UserDevice
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                DeviceId = $"ip:{ip}"[..Math.Min($"ip:{ip}".Length, 100)],
+                DeviceName = string.IsNullOrWhiteSpace(agent) ? "نامشخص" : agent[..Math.Min(agent.Length, 200)],
+                IpAddress = ip,
+                LastSeenAt = now,
+                IsActive = !exceedsLimit,
+                CreatedAt = now
+            });
+        }
+        else
+        {
+            device.LastSeenAt = now;
+            var agent = Request.Headers.UserAgent.ToString();
+            if (!string.IsNullOrWhiteSpace(agent)) device.DeviceName = agent[..Math.Min(agent.Length, 200)];
+            if (!exceedsLimit) device.IsActive = true;
+        }
+
+        if (exceedsLimit)
+        {
+            var account = await _db.Users.FirstOrDefaultAsync(x => x.Id == userId);
+            if (account is not null)
+            {
+                account.IsActive = false;
+                account.UpdatedAt = now;
+            }
+
+            var tokens = await _db.RefreshTokens.Where(x => x.UserId == userId && !x.IsRevoked).ToListAsync();
+            foreach (var token in tokens) token.IsRevoked = true;
+        }
+
+        await _db.SaveChangesAsync();
+        return !exceedsLimit;
+    }
+
     private string GenerateToken(Domain.Entities.User user)
     {
         var jwtSection = _configuration.GetSection("Jwt");
         var key = jwtSection.GetValue<string>("Key");
+        if (string.IsNullOrWhiteSpace(key))
+            throw new InvalidOperationException("JWT signing key is not configured.");
         var issuer = jwtSection.GetValue<string>("Issuer");
         var audience = jwtSection.GetValue<string>("Audience");
         var expires = jwtSection.GetValue<int>("ExpiresMinutes");
@@ -263,6 +349,7 @@ public class AuthController : ControllerBase
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim(JwtRegisteredClaimNames.UniqueName, user.Username),
             new Claim(ClaimTypes.Name, user.Name),
+            new Claim("phone", user.Phone ?? string.Empty),
             new Claim(ClaimTypes.Role, role),
             new Claim("role", role),
             new Claim("roles", role),

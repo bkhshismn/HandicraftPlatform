@@ -11,7 +11,12 @@ using Microsoft.OpenApi.Models;
 using Handicraft.Infrastructure.BackgroundServices;
 using Handicraft.Infrastructure.Services;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.FileProviders;
+using System.Net;
+using System.Security.Claims;
+using Handicraft.Api.Notifications;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,6 +26,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Logging.AddDebug();
+builder.Logging.AddFilter("System.Net.Http.HttpClient.TelegramBotApi", LogLevel.Warning);
 
 builder.Configuration.AddJsonFile(
     "appsettings.Local.json",
@@ -37,14 +43,16 @@ builder.Configuration.AddEnvironmentVariables();
 
 builder.Services.Configure<FormOptions>(options =>
 {
-    options.MultipartBodyLengthLimit = 3_221_225_472;
+    // Large uploads are enabled only on the dedicated video endpoint below.
+    options.MultipartBodyLengthLimit = 32 * 1024 * 1024;
     options.ValueLengthLimit = 16_384;
     options.MultipartHeadersLengthLimit = 32_768;
 });
 
 builder.WebHost.ConfigureKestrel(options =>
 {
-    options.Limits.MaxRequestBodySize = 3_221_225_472;
+    // Keep the default request limit small; video upload opts into its own limit.
+    options.Limits.MaxRequestBodySize = 32 * 1024 * 1024;
 });
 
 
@@ -117,6 +125,7 @@ builder.Services.AddScoped<ICourseLessonProgressRepository, CourseLessonProgress
 // ==========================
 
 builder.Services.AddAutoMapper(
+    _ => { },
     typeof(
         Handicraft.Application.Services.MappingProfile
     ).Assembly);
@@ -178,6 +187,46 @@ builder.Services.AddSingleton<
 // ==========================
 
 builder.Services.AddControllers();
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("login", httpContext =>
+    {
+        // Nginx appends the address of its immediate peer to X-Forwarded-For.
+        // The API is bound to localhost and only reached through that proxy, so
+        // use the last address it appended instead of the shared Docker gateway IP.
+        var forwardedFor = httpContext.Request.Headers["X-Forwarded-For"].ToString();
+        var clientIp = forwardedFor
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .LastOrDefault();
+
+        if (!IPAddress.TryParse(clientIp, out _))
+            clientIp = httpContext.Connection.RemoteIpAddress?.ToString();
+
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: clientIp ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(2),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            });
+    });
+});
+
+builder.Services.Configure<TelegramBotOptions>(builder.Configuration.GetSection("Telegram"));
+builder.Services.AddHttpClient("TelegramBotApi", client =>
+{
+    client.BaseAddress = new Uri("https://api.telegram.org/");
+    client.Timeout = TimeSpan.FromSeconds(40);
+});
+builder.Services.AddSingleton<TelegramBotApiClient>();
+builder.Services.AddSingleton<TelegramSubscriberStore>();
+builder.Services.AddSingleton<TelegramEventQueue>();
+builder.Services.AddHostedService<TelegramBotPollingService>();
+builder.Services.AddHostedService<TelegramEventDispatcher>();
 
 builder.Services.Configure<
     Microsoft.AspNetCore.Mvc.ApiBehaviorOptions>(
@@ -341,12 +390,24 @@ builder.Services.AddAuthentication(
 
 
                     OnTokenValidated =
-                        context =>
+                        async context =>
                         {
+                            var userIdText = context.Principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                                ?? context.Principal?.FindFirst("sub")?.Value;
+                            var isActive = Guid.TryParse(userIdText, out var userId)
+                                && await context.HttpContext.RequestServices
+                                    .GetRequiredService<AppDbContext>()
+                                    .Users.AsNoTracking()
+                                    .AnyAsync(x => x.Id == userId && x.IsActive);
+
+                            if (!isActive)
+                            {
+                                context.Fail("User account is inactive.");
+                                return;
+                            }
+
                             Console.WriteLine(
                                 "[JWT OK] Token validated successfully");
-
-                            return Task.CompletedTask;
                         }
                 };
         });
@@ -504,6 +565,7 @@ if (!app.Environment.IsDevelopment())
 // باشد.
 //
 
+app.UseRouting();
 app.UseCors("ClientCors");
 
 app.UseStaticFiles(new StaticFileOptions
@@ -519,12 +581,16 @@ app.UseStaticFiles(new StaticFileOptions
 
 app.UseAuthentication();
 
+app.UseRateLimiter();
+
 
 // ==========================
 // Authorization
 // ==========================
 
 app.UseAuthorization();
+
+app.UseMiddleware<TelegramEventMiddleware>();
 
 
 // ==========================

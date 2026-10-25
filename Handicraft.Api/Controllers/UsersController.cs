@@ -26,9 +26,10 @@ public class UsersController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> List()
     {
-        var users = await _db.Users.OrderBy(x => x.Role).ThenBy(x => x.Name)
-            .Select(x => new { x.Id, x.Name, Username = x.Username, x.Role, x.IsActive,
-                Categories = x.CourseCategories.Select(c => c.Category).ToList() }).ToListAsync();
+        var users = await _db.Users.OrderByDescending(x => x.CreatedAt)
+            .Select(x => new { x.Id, x.Name, Username = x.Username, x.Role, x.IsActive, x.IsApproved, x.CreatedAt,
+                Categories = x.CourseCategories.Select(c => c.Category).ToList(),
+                IpAddresses = x.Devices.Select(d => d.IpAddress).Distinct().ToList() }).ToListAsync();
         var categories = await _db.CourseCategories.Select(x => x.Name).ToListAsync();
         categories = categories.Concat(CourseCategories.PapierMache).Concat(await _db.Courses.Select(x => x.Category).Distinct().ToListAsync()).Distinct().OrderBy(x => x).ToList();
         return Ok(new { users, categories });
@@ -48,7 +49,7 @@ public class UsersController : ControllerBase
         var user = new User { Id = Guid.NewGuid(), Username = username, Phone = username, Name = string.IsNullOrWhiteSpace(request.Name) ? username : request.Name.Trim(), PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password), Role = role, IsActive = true, CreatedAt = DateTime.UtcNow };
         _db.Users.Add(user);
         await _db.SaveChangesAsync();
-        return Ok(new { user.Id, user.Name, Username = user.Username, user.Role, user.IsActive, Categories = Array.Empty<string>() });
+        return Ok(new { user.Id, user.Name, Username = user.Username, user.Role, user.IsActive, user.IsApproved, user.CreatedAt, Categories = Array.Empty<string>() });
     }
 
     [HttpPut("{id:guid}/role")]
@@ -80,23 +81,42 @@ public class UsersController : ControllerBase
         return Ok(new { user.Id, user.Role });
     }
 
+    [HttpPut("{id:guid}/active")]
+    public async Task<IActionResult> SetActive(Guid id, [FromBody] SetUserActiveRequest request)
+    {
+        var user = await _db.Users.FirstOrDefaultAsync(x => x.Id == id);
+        if (user is null) return NotFound();
+        if (user.Role == "Admin" && !request.IsActive)
+            return BadRequest(new { message = "مسدود کردن حساب مدیر از این بخش مجاز نیست." });
+
+        user.IsActive = request.IsActive;
+        user.UpdatedAt = DateTime.UtcNow;
+        if (!request.IsActive)
+        {
+            var tokens = await _db.RefreshTokens.Where(x => x.UserId == id && !x.IsRevoked).ToListAsync();
+            foreach (var token in tokens) token.IsRevoked = true;
+        }
+        else
+        {
+            user.IsApproved = true;
+            // Keep the complete IP history for the admin, but let the user register
+            // up to two devices again after the admin lifts the block.
+            var devices = await _db.UserDevices.Where(x => x.UserId == id).ToListAsync();
+            foreach (var device in devices) device.IsActive = false;
+        }
+        await _db.SaveChangesAsync();
+        return NoContent();
+    }
+
     [HttpPut("{id:guid}/categories")]
     public async Task<IActionResult> SetCategories(Guid id, [FromBody] SetUserCategoriesRequest request)
     {
-        var user = await _db.Users.Include(x => x.CourseCategories).Include(x => x.Enrollments).FirstOrDefaultAsync(x => x.Id == id);
+        var user = await _db.Users.Include(x => x.CourseCategories).FirstOrDefaultAsync(x => x.Id == id);
         if (user == null) return NotFound();
         var categories = request.Categories.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).Distinct().ToHashSet();
         _db.UserCourseCategories.RemoveRange(user.CourseCategories.ToList());
         foreach (var category in categories)
             _db.UserCourseCategories.Add(new UserCourseCategory { UserId = user.Id, Category = category });
-        var courses = await _db.Courses.Where(x => categories.Contains(x.Category)).ToListAsync();
-        var existing = user.Enrollments.ToDictionary(x => x.CourseId);
-        foreach (var enrollment in user.Enrollments) enrollment.IsActive = courses.Any(c => c.Id == enrollment.CourseId);
-        foreach (var course in courses)
-        {
-            if (existing.TryGetValue(course.Id, out var enrollment)) enrollment.IsActive = true;
-            else _db.CourseEnrollments.Add(new CourseEnrollment { Id = Guid.NewGuid(), UserId = user.Id, CourseId = course.Id, PaidAmount = 0, EnrolledAt = DateTime.UtcNow, IsActive = true, CreatedAt = DateTime.UtcNow });
-        }
         await _db.SaveChangesAsync();
         return NoContent();
     }
@@ -143,5 +163,6 @@ public class UsersController : ControllerBase
 
 public sealed class CreateManagedUserRequest { public string Username { get; set; } = ""; public string Name { get; set; } = ""; public string Password { get; set; } = ""; public string Role { get; set; } = "User"; }
 public sealed class SetUserRoleRequest { public string Role { get; set; } = "User"; }
+public sealed class SetUserActiveRequest { public bool IsActive { get; set; } }
 public sealed class SetUserCategoriesRequest { public List<string> Categories { get; set; } = []; }
 public sealed class SetUserNameRequest { public string Name { get; set; } = ""; }

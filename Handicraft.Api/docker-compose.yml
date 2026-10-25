@@ -25,9 +25,12 @@ services:
       VideoStorage__BasePath: /app/VideoStorage
       Media__PublicBaseUrl: ${MEDIA_PUBLIC_BASE_URL:-http://localhost:8080}
       Cors__AllowedOrigins__0: ${FRONTEND_PUBLIC_ORIGIN:-http://localhost:8081}
-      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:?Set SEED_ADMIN_PASSWORD for initial admin seeding}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
       ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
       Jwt__Key: ${JWT_KEY:?Set JWT_KEY to a random secret of at least 32 characters}
+      Telegram__BotToken: ${TELEGRAM_BOT_TOKEN:-}
+      Telegram__AllowedPhoneNumbers: ${TELEGRAM_ALLOWED_PHONE_NUMBERS:-}
+      Telegram__DataDirectory: /app/TelegramData
     ports:
       - "127.0.0.1:8080:8080"
     depends_on:
@@ -36,6 +39,7 @@ services:
     volumes:
       - media_storage:/app/wwwroot/uploads
       - video_storage:/app/VideoStorage
+      - telegram_data:/app/TelegramData
     restart: unless-stopped
 
   postgres:
@@ -65,3 +69,5 @@ volumes:
   video_storage:
     name: marzi_video_storage
     external: true
+  telegram_data:
+    driver: local

@@ -61,7 +61,7 @@ public class LocalVideoStorageService : IVideoStorageService
 
         Directory.CreateDirectory(folder);
 
-        var rawPath = Path.Combine(folder, fileName);
+        var rawPath = GetContainedRawPath(folder, fileName);
 
         Console.WriteLine(
             $"[VIDEO STORAGE] Saving raw video: {rawPath}");
@@ -97,12 +97,37 @@ public class LocalVideoStorageService : IVideoStorageService
         Guid episodeId,
         string fileName)
     {
-        return Path.Combine(
+        var folder = Path.Combine(
             _basePath,
             lessonId.ToString(),
             episodeId.ToString(),
-            "raw",
-            fileName);
+            "raw");
+
+        return GetContainedRawPath(folder, fileName);
+    }
+
+    private static string GetContainedRawPath(string folder, string fileName)
+    {
+        // Treat both slash styles as separators, even when running on Windows.
+        var normalizedName = fileName.Replace('\\', '/');
+        if (string.IsNullOrWhiteSpace(normalizedName) ||
+            normalizedName is "." or ".." ||
+            normalizedName.Contains('/') ||
+            Path.IsPathRooted(fileName))
+        {
+            throw new ArgumentException("Invalid raw video file name.", nameof(fileName));
+        }
+
+        var fullFolder = Path.GetFullPath(folder);
+        var fullPath = Path.GetFullPath(Path.Combine(fullFolder, normalizedName));
+        var folderPrefix = fullFolder.EndsWith(Path.DirectorySeparatorChar)
+            ? fullFolder
+            : fullFolder + Path.DirectorySeparatorChar;
+
+        if (!fullPath.StartsWith(folderPrefix, StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException("Raw video path escapes its storage folder.", nameof(fileName));
+
+        return fullPath;
     }
 
     public string GetHlsOutputDirectory(

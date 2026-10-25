@@ -19,4 +19,7 @@ public interface IOrderService
     Task<OrderDto?> UpdateByAdminAsync(
         Guid id,
         AdminUpdateOrderDto dto);
+
+    Task<OrderDto?> UpdateByUserAsync(Guid id, Guid userId, OrderCreateDto dto);
+    Task<bool> DeleteAsync(Guid id, Guid? ownerId = null);
 }

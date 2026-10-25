@@ -40,6 +40,7 @@ public class CourseEpisodeService : ICourseEpisodeService
                 "فایل ویدئو انتخاب نشده است.");
         }
 
+        var rawVideoFileName = $"{Guid.NewGuid():N}.upload";
         var episode = new CourseEpisode
         {
             Id = Guid.NewGuid(),
@@ -62,7 +63,10 @@ public class CourseEpisodeService : ICourseEpisodeService
 
             CreatedAt = DateTime.UtcNow,
 
-            RawVideoFileName = dto.VideoFile.FileName
+            // Never persist or use the client supplied name as a filesystem path.
+            // The processor only needs a stable private filename; FFmpeg detects
+            // the input format from the file contents.
+            RawVideoFileName = rawVideoFileName
         };
 
         // --------------------------------------------------------
@@ -76,7 +80,7 @@ public class CourseEpisodeService : ICourseEpisodeService
             lessonId,
             episode.Id,
             stream,
-            dto.VideoFile.FileName);
+            rawVideoFileName);
 
         // --------------------------------------------------------
         // Save episode in database
@@ -251,6 +255,39 @@ public class CourseEpisodeService : ICourseEpisodeService
             return false;
         }
 
+        var course = episode.Lesson?.Section?.Course;
+        if (course is null)
+        {
+            Console.WriteLine("[VIDEO ACCESS] Course could not be resolved.");
+            return false;
+        }
+
+        // A guest may watch a course only when the course itself is marked free.
+        // Episode previews inside paid courses are available to signed-in users only.
+        if (user?.Identity?.IsAuthenticated != true)
+        {
+            if (course.IsFree)
+            {
+                Console.WriteLine("[VIDEO ACCESS] Free course; guest access granted.");
+                return true;
+            }
+
+            Console.WriteLine("[VIDEO ACCESS] Paid course; guest access denied.");
+            return false;
+        }
+
+        if (user.IsInRole("Admin"))
+        {
+            Console.WriteLine("[VIDEO ACCESS] Admin access granted.");
+            return true;
+        }
+
+        if (episode.IsFree)
+        {
+            Console.WriteLine("[VIDEO ACCESS] Signed-in preview access granted.");
+            return true;
+        }
+
         // ========================================================
         // 4. FREE EPISODE
         //
@@ -259,17 +296,6 @@ public class CourseEpisodeService : ICourseEpisodeService
         //
         // Anonymous users can watch free previews.
         // ========================================================
-
-        if (episode.IsFree)
-        {
-            Console.WriteLine(
-                "[VIDEO ACCESS] Episode is FREE.");
-
-            Console.WriteLine(
-                "[VIDEO ACCESS] Access granted.");
-
-            return true;
-        }
 
         // ========================================================
         // 5. Paid episode requires authentication
@@ -342,19 +368,6 @@ public class CourseEpisodeService : ICourseEpisodeService
         //    ↓
         // Course
         // ========================================================
-
-        var course =
-            episode.Lesson?
-                .Section?
-                .Course;
-
-        if (course is null)
-        {
-            Console.WriteLine(
-                "[VIDEO ACCESS] Course could not be resolved.");
-
-            return false;
-        }
 
         Console.WriteLine(
             $"[VIDEO ACCESS] CourseId={course.Id}");

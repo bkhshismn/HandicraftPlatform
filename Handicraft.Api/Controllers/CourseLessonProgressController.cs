@@ -43,7 +43,7 @@ public class CourseLessonProgressController : ControllerBase
 
             return Ok(progress);
         }
-        catch (UnauthorizedAccessException ex)
+        catch (UnauthorizedAccessException)
         {
             return Forbid();
         }

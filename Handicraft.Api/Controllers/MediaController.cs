@@ -31,7 +31,8 @@ public sealed class MediaController : ControllerBase
     }
 
     [HttpPost("images")]
-    [Authorize(Roles = "Admin,Instructor")]
+    // Customers upload a reference image while creating or editing their own order.
+    [Authorize]
     [RequestSizeLimit(MaxImageSize + 1024 * 1024)]
     [RequestFormLimits(MultipartBodyLengthLimit = MaxImageSize + 1024 * 1024)]
     public async Task<ActionResult<ImageUploadResponse>> UploadImage(
